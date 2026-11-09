@@ -1,0 +1,2922 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Faltwerk Modellgenerator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: workbench — four tabs of controls on the left, the model on a cutting-mat grid on the right (always in view); stacks on phones */
+:root {
+  --bg: #eef1ee;
+  --panel: #ffffff;
+  --ink: #18201d;
+  --muted: #5d6b65;
+  --line: #c9d3ce;
+  --mat: #e2ebe6;
+  --matline: #c7d8cf;
+  --accent: #127a63;
+  --accent-ink: #ffffff;
+  --face: #127a63;
+  --sel: #e8912c;
+  --warn: #a4570a;
+  --bad: #b3261e;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121715; --panel: #1a211e; --ink: #e5ece8; --muted: #93a39b; --line: #2e3a35;
+  --mat: #17201c; --matline: #24332c; --accent: #3fbf9b; --accent-ink: #0b1310; --face: #3fbf9b; --sel: #f0a64a;
+  --warn: #e0a050; --bad: #f08a80; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #121715; --panel: #1a211e; --ink: #e5ece8; --muted: #93a39b; --line: #2e3a35;
+  --mat: #17201c; --matline: #24332c; --accent: #3fbf9b; --accent-ink: #0b1310; --face: #3fbf9b; --sel: #f0a64a;
+  --warn: #e0a050; --bad: #f08a80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 32px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.step { font-family: var(--font-data); font-size: 0.78rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.grid { display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 6px; }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 0; }
+textarea, input[type=number], input[type=text] { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+input[type=number] { padding: 8px 10px; }
+textarea { min-height: 84px; resize: vertical; }
+textarea:focus-visible, input:focus-visible, button:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+textarea.objtext { min-height: 150px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.row > div { flex: 1 1 90px; min-width: 0; }
+.num { font-family: var(--font-data); }
+button { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+button.quiet { color: var(--muted); font-weight: 400; }
+.status { font-size: 0.9rem; min-height: 1.5em; margin: 0; }
+.status.err { color: var(--bad); }
+.status.warn { color: var(--warn); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button { font-weight: 400; padding: 6px 12px; border-radius: 999px; }
+.chips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.side { display: grid; gap: 14px; min-width: 0; }
+a { color: var(--accent); }
+[hidden] { display: none !important; }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 400; margin: 0; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.drop { border: 1.5px dashed var(--line); border-radius: 8px; padding: 10px 12px; color: var(--muted); cursor: pointer; display: block; text-align: center; font-weight: 400; margin: 0; }
+.drop.over, .drop:hover { border-color: var(--accent); color: var(--ink); }
+.drop b { color: var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; max-width: 100%; flex-wrap: wrap; }
+.seg button { border: 0; border-radius: 0; padding: 7px 12px; font-weight: 400; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.tabs4 { display: grid; grid-template-columns: repeat(4, auto); width: 100%; }
+.tabs4 button { padding: 10px 4px; font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
+.tabs4 button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+@media (max-width: 860px) { .tabs4 { grid-template-columns: repeat(2, 1fr); } .view { order: -1; } }
+.stepcard { display: grid; gap: 14px; min-width: 0; }
+.block { border-top: 1px solid var(--line); padding-top: 12px; }
+.block:first-of-type { border-top: 0; padding-top: 0; }
+.block > summary { font-family: var(--font-display); font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 10px; min-height: 32px; list-style: none; cursor: pointer; }
+.block > summary::-webkit-details-marker { display: none; }
+.block > summary::before { content: "▸"; width: 1em; color: var(--muted); }
+.block[open] > summary::before { content: "▾"; }
+.block > summary .sumx { margin-left: auto; font-family: var(--font-body); font-weight: 400; font-size: 0.82rem; color: var(--muted); }
+.block .body { display: grid; gap: 12px; padding-top: 6px; }
+.more > summary { color: var(--muted); font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+.more[open] > summary { color: var(--ink); margin-bottom: 8px; }
+.more .body { display: grid; gap: 12px; }
+.box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.box legend { font-weight: 800; font-size: 0.92rem; padding: 0 6px; font-family: var(--font-display); }
+.tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.tools button { display: flex; align-items: center; gap: 10px; padding: 8px 10px; font-weight: 600; text-align: left; min-width: 0; }
+.tools button kbd { flex: 0 0 auto; display: inline-grid; place-items: center; min-width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); font-family: var(--font-data); font-size: 0.85rem; font-weight: 500; }
+.tools button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tw { display: grid; grid-template-columns: 82px minmax(0, 1fr) 72px; gap: 8px 10px; align-items: center; }
+.tw label { margin: 0; font-size: 0.86rem; }
+.tw input[type=number] { padding: 6px 8px; font-family: var(--font-data); font-size: 0.88rem; }
+.xyz { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 6px 8px; align-items: center; }
+.xyz span { font-size: 0.82rem; color: var(--muted); }
+.xyz .h { font-family: var(--font-data); font-size: 0.78rem; text-align: center; color: var(--muted); }
+.xyz input { padding: 6px 8px; font-family: var(--font-data); font-size: 0.88rem; }
+.photos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.slot { border: 1.5px dashed var(--line); border-radius: 8px; padding: 6px; display: grid; gap: 6px; min-width: 0; }
+.slot.over { border-color: var(--accent); }
+.slot.has { border-style: solid; }
+.slot .t { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-weight: 600; font-size: 0.86rem; }
+.slot .t small { font-weight: 400; color: var(--muted); font-size: 0.75rem; }
+.slot canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 6px; background: var(--bg); cursor: pointer; }
+.slot .sb { display: flex; gap: 4px; flex-wrap: wrap; }
+.slot .sb button { padding: 3px 8px; font-size: 0.78rem; font-weight: 400; }
+/* viewer */
+.view { display: grid; gap: 12px; min-width: 0; }
+@media (min-width: 861px) { .view { position: sticky; top: 12px; } }
+.viewer { position: relative; background: var(--mat); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; aspect-ratio: 4 / 3; max-width: 100%; max-height: calc(100vh - 150px); width: 100%; }
+.viewer canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.viewer canvas.edit { cursor: default; }
+.viewer canvas#draw { cursor: crosshair; }
+.viewer .tag { position: absolute; left: 10px; top: 8px; font-family: var(--font-data); font-size: 0.75rem; color: var(--muted); background: var(--panel); border: 1px solid var(--line); padding: 2px 8px; border-radius: 6px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer .views { position: absolute; right: 8px; top: 8px; display: flex; gap: 4px; }
+.viewer .views button, .viewer .bar button { padding: 4px 9px; font-size: 0.8rem; font-weight: 600; background: var(--panel); }
+.viewer .help { position: absolute; left: 10px; right: 10px; bottom: 8px; font-size: 0.8rem; color: var(--muted); text-align: right; pointer-events: none; }
+.viewer .help.modal { color: var(--ink); text-align: center; }
+.viewer .help.modal b { background: var(--panel); border: 1px solid var(--sel); padding: 3px 10px; border-radius: 6px; font-weight: 600; }
+.viewer .bar { position: absolute; left: 8px; right: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.viewer .bar .grow { flex: 1 1 auto; }
+.viewer .bar button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.viewer .bar label { margin: 0; font-weight: 400; font-size: 0.8rem; display: flex; gap: 6px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; }
+.viewer .bar input[type=range] { width: 90px; }
+.viewer .bar .msg { font-size: 0.8rem; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.stat { border-top: 2px solid var(--line); padding-top: 4px; min-width: 0; }
+.stat b { display: block; font-family: var(--font-data); font-weight: 500; font-size: 1.02rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat span { font-size: 0.74rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.stat.ok { border-color: var(--accent); }
+.stat.bad { border-color: var(--bad); }
+ol.log { margin: 0; padding-left: 1.3em; font-family: var(--font-data); font-size: 0.8rem; color: var(--muted); display: grid; gap: 2px; }
+.issues { margin: 0; padding-left: 18px; color: var(--warn); font-size: 0.85rem; display: grid; gap: 4px; }
+ul.keys { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 0.84rem; color: var(--muted); }
+ul.keys b { color: var(--ink); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<div class="wrap">
+  <header>
+    <h1>Faltwerk Modellgenerator</h1>
+    <span class="step">Schritt 1 von 2 · Bauen, Fotos, Bearbeiten → OBJ</span>
+  </header>
+  <div class="grid">
+    <section class="panel" aria-label="Werkzeuge">
+      <div class="seg tabs4" role="tablist" aria-label="Reiter">
+        <button type="button" role="tab" data-tab="neu" aria-selected="true">1 Neu</button>
+        <button type="button" role="tab" data-tab="fotos" aria-selected="false">2 Fotos</button>
+        <button type="button" role="tab" data-tab="bearbeiten" aria-selected="false">3 Bearbeiten</button>
+        <button type="button" role="tab" data-tab="speichern" aria-selected="false">4 Speichern</button>
+      </div>
+
+      <!-- 1 Neu -->
+      <section class="stepcard" data-panel="neu" role="tabpanel">
+        <details class="block" id="bShape" open>
+          <summary>Grundform <span class="sumx">Quader, Säule, Kugel …</span></summary>
+          <div class="body">
+            <div id="shapes" class="chips" role="group" aria-label="Grundform">
+              <button type="button" data-shape="box" aria-pressed="true">Quader</button>
+              <button type="button" data-shape="column" aria-pressed="false">Säule / Kegel</button>
+              <button type="button" data-shape="sphere" aria-pressed="false">Kugel</button>
+              <button type="button" data-shape="ring" aria-pressed="false">Ring</button>
+              <button type="button" data-shape="house" aria-pressed="false">Haus</button>
+            </div>
+            <div id="shapeParams" class="row"></div>
+            <div class="actions">
+              <button id="shapeNew" class="primary" type="button">Neu</button>
+              <button id="shapeAdd" type="button">Dazu</button>
+            </div>
+            <p class="hint">„Dazu“ setzt die Form oben aufs Modell und wählt sie aus, dann gleich mit der Maus hinschieben.</p>
+          </div>
+        </details>
+        <details class="block" id="bDraw">
+          <summary>Zeichnen <span class="sumx">Umriss oder Drehkörper</span></summary>
+          <div class="body">
+            <div class="seg" role="group" aria-label="Art">
+              <button type="button" data-dkind="extrude" aria-pressed="true">Umriss → ausziehen</button>
+              <button type="button" data-dkind="revolve" aria-pressed="false">Profil → drehen</button>
+            </div>
+            <div class="row">
+              <div id="dDepthBox"><label for="dDepth">Tiefe (mm)</label><input id="dDepth" class="num" type="number" min="1" max="500" step="1" value="30"></div>
+              <div id="dSidesBox" hidden><label for="dSides">Seiten</label><input id="dSides" class="num" type="number" min="3" max="64" step="1" value="12"></div>
+              <div><label for="dHeight">Echte Höhe (mm)</label><input id="dHeight" class="num" type="number" min="0" max="1000" step="1" placeholder="wie gezeichnet"></div>
+            </div>
+            <label class="drop" for="dPhoto" id="dPhotoDrop"><b>Foto als Vorlage</b> (optional) hierher ziehen oder klicken</label>
+            <input id="dPhoto" class="vh" type="file" accept="image/*">
+            <div class="actions">
+              <button id="drawStart" class="primary" type="button">Zeichnen starten</button>
+              <button id="dPhotoClear" class="quiet" type="button" hidden>Vorlage weg</button>
+            </div>
+            <p class="hint" id="drawHint">Rechts Punkte klicken, Klick auf den ersten Punkt schließt. Punkte lassen sich ziehen.</p>
+          </div>
+        </details>
+        <details class="block" id="bClaude">
+          <summary>Mit Claude <span class="sumx">aus einer Beschreibung</span></summary>
+          <div class="body">
+            <textarea id="prompt" placeholder="z. B. Mach mir ein 3D-Modell einer Schere">Mach mir ein 3D-Modell einer Schere</textarea>
+            <div class="row">
+              <div><label for="cPoints">Höchstens Punkte</label><input id="cPoints" class="num" type="number" min="8" max="400" step="1" value="70"></div>
+              <button id="cGo" class="primary" type="button">Modell erzeugen</button>
+              <button id="cStop" type="button" hidden>Stopp</button>
+            </div>
+            <div id="choices" class="chips" hidden></div>
+            <div id="cManual" class="side" hidden>
+              <p class="hint">Der Auftrag ist in der Zwischenablage. In einen <a href="https://claude.ai/new" target="_blank" rel="noopener">Claude-Chat</a> einfügen und Claudes Antwort hier einsetzen.</p>
+              <textarea id="cAnswer" placeholder="Claudes Antwort hier einfügen"></textarea>
+              <div class="actions">
+                <button id="cUse" class="primary" type="button">Antwort übernehmen</button>
+                <button id="cCopy" type="button">Auftrag nochmal kopieren</button>
+              </div>
+            </div>
+          </div>
+        </details>
+        <details class="block" id="bObj">
+          <summary>OBJ laden <span class="sumx">Datei oder Text</span></summary>
+          <div class="body">
+            <label class="drop" for="file" id="objDrop"><b>OBJ hierher ziehen</b> oder klicken</label>
+            <input id="file" class="vh" type="file" accept=".obj,.txt,.json">
+            <textarea id="objtext" class="objtext" spellcheck="false" placeholder="v 0 0 0&#10;v 50 0 0&#10;…&#10;f 1 2 3"></textarea>
+            <div class="row">
+              <label class="check"><input id="adjust" type="checkbox" checked> Höchstens</label>
+              <div style="flex: 0 1 90px"><input id="points" class="num" type="number" min="8" max="400" step="1" value="200" aria-label="Höchstens Punkte"></div>
+              <span class="hint">Punkte</span>
+            </div>
+            <div class="actions">
+              <button id="go" class="primary" type="button">Bereinigen und übernehmen</button>
+              <button id="toText" type="button">Modell ins Textfeld</button>
+            </div>
+            <ul id="issues" class="issues" hidden></ul>
+            <button id="copyFix" type="button" hidden>Korrektur für Claude kopieren</button>
+          </div>
+        </details>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <!-- 2 Fotos -->
+      <section class="stepcard" data-panel="fotos" role="tabpanel" hidden>
+        <p class="hint">Vor einfarbiger Wand, möglichst gerade. Klick ins Foto = „das ist Hintergrund“. Mehrere Fotos auf einmal hierher ziehen geht auch.</p>
+        <div class="photos" id="photos"></div>
+        <div>
+          <label for="tol">Trennung Objekt / Hintergrund</label>
+          <input id="tol" type="range" min="10" max="140" step="1" value="45">
+        </div>
+        <div class="row">
+          <div><label for="pH">Höhe (mm)</label><input id="pH" class="num" type="number" min="10" max="1000" step="1" value="120"></div>
+          <div><label for="pN">Höchstens Punkte</label><input id="pN" class="num" type="number" min="8" max="400" step="1" value="80"></div>
+        </div>
+        <p id="pDims" class="hint">Noch keine Fotos.</p>
+        <div>
+          <span class="lbl" style="font-weight:600;font-size:0.9rem;display:block;margin-bottom:6px">Vereinfachen</span>
+          <div class="seg" id="pSimp" role="group" aria-label="Vereinfachen">
+            <button type="button" data-v="0.006" aria-pressed="false">wenig</button>
+            <button type="button" data-v="0.012" aria-pressed="true">mittel</button>
+            <button type="button" data-v="0.025" aria-pressed="false">stark</button>
+          </div>
+        </div>
+        <button id="pGo" class="primary" type="button">Modell aus Umrissen</button>
+        <p id="pStatus" class="status" role="status" aria-live="polite"></p>
+        <details class="more" id="pClaudeBox">
+          <summary>Claude fragen (versteht Mulden und Henkel)</summary>
+          <div class="body">
+            <p class="hint" id="pClaudeHint">Claude bekommt die Fotos und die Maße aus den Umrissen. Kostet Nachrichten aus deinem Claude-Limit.</p>
+            <div class="actions">
+              <button id="pClaude" type="button">Claude fragen</button>
+              <button id="pClaudeStop" type="button" hidden>Stopp</button>
+            </div>
+            <div id="pManual" class="side" hidden>
+              <p class="hint">Der Auftrag ist in der Zwischenablage. In einen <a href="https://claude.ai/new" target="_blank" rel="noopener">Claude-Chat</a> einfügen, die Fotos dazuziehen, Antwort hier einsetzen.</p>
+              <textarea id="pAnswer" placeholder="Claudes Antwort hier einfügen"></textarea>
+              <button id="pUse" class="primary" type="button">Antwort übernehmen</button>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- 3 Bearbeiten -->
+      <section class="stepcard" data-panel="bearbeiten" role="tabpanel" hidden>
+        <div class="row" style="align-items:center">
+          <div class="seg" id="modes" role="group" aria-label="Auswählen">
+            <button type="button" data-mode="v" aria-pressed="true">1 Punkt</button>
+            <button type="button" data-mode="e" aria-pressed="false">2 Kante</button>
+            <button type="button" data-mode="f" aria-pressed="false">3 Fläche</button>
+          </div>
+          <button id="undo" type="button" class="quiet" title="⌘Z">↶</button>
+          <button id="redo" type="button" class="quiet" title="⇧⌘Z">↷</button>
+        </div>
+        <div class="tools" id="tools">
+          <button type="button" data-tool="move"><kbd>G</kbd><span>Verschieben</span></button>
+          <button type="button" data-tool="scale"><kbd>S</kbd><span>Größe</span></button>
+          <button type="button" data-tool="rotate"><kbd>R</kbd><span>Drehen</span></button>
+          <button type="button" data-tool="extrude"><kbd>E</kbd><span>Ausstülpen</span></button>
+          <button type="button" data-tool="inset"><kbd>I</kbd><span>Einrücken</span></button>
+          <button type="button" data-tool="merge"><kbd>M</kbd><span>Verschmelzen</span></button>
+          <button type="button" data-tool="split"><kbd>T</kbd><span>Kante teilen</span></button>
+          <button type="button" data-tool="connect"><kbd>K</kbd><span>Verbinden</span></button>
+          <button type="button" data-tool="fill"><kbd>F</kbd><span>Loch füllen</span></button>
+          <button type="button" data-tool="del"><kbd>⌫</kbd><span>Löschen</span></button>
+        </div>
+        <p id="toolHint" class="hint">Klick aufs Modell wählt aus. Ziehen am Gewählten verschiebt.</p>
+        <div class="row" style="align-items:center">
+          <span style="font-weight:600;font-size:0.9rem">Symmetrie</span>
+          <div class="seg" id="symSeg" role="group" aria-label="Symmetrie">
+            <button type="button" data-sym="off" aria-pressed="true">aus</button>
+            <button type="button" data-sym="x" aria-pressed="false">links–rechts</button>
+            <button type="button" data-sym="z" aria-pressed="false">vorne–hinten</button>
+          </div>
+        </div>
+        <div class="row">
+          <label class="check"><input id="xray" type="checkbox"> Durchsicht</label>
+          <label class="check"><input id="snap" type="checkbox" checked> Raster 1 mm</label>
+        </div>
+        <fieldset class="box">
+          <legend id="selTitle">Ganzes Modell</legend>
+          <div class="xyz">
+            <span></span><span class="h">X</span><span class="h">Y</span><span class="h">Z</span>
+            <span>Größe</span><input id="sx" type="number" step="1" aria-label="Größe X"><input id="sy" type="number" step="1" aria-label="Größe Y"><input id="sz" type="number" step="1" aria-label="Größe Z">
+            <span>Mitte</span><input id="cx" type="number" step="1" aria-label="Mitte X"><input id="cy" type="number" step="1" aria-label="Mitte Y"><input id="cz" type="number" step="1" aria-label="Mitte Z">
+          </div>
+          <label class="check"><input id="keepRatio" type="checkbox" checked> Seitenverhältnis halten</label>
+        </fieldset>
+        <fieldset class="box" id="twBox">
+          <legend>Strecken &amp; Verdrehen</legend>
+          <div class="tw">
+            <label for="twH">Höhe ×</label><input id="twH" type="range" min="0.25" max="4" step="0.05" value="1"><input id="twHn" type="number" min="0.1" max="10" step="0.05" value="1" aria-label="Höhe Faktor">
+            <label for="twA">Twist °</label><input id="twA" type="range" min="-720" max="720" step="5" value="0"><input id="twAn" type="number" min="-1440" max="1440" step="5" value="0" aria-label="Verdrehung in Grad">
+            <label for="twN">Schichten</label><span class="hint" id="twNote" style="font-size:0.8rem">leer = automatisch</span><input id="twN" type="number" min="1" max="120" step="1" placeholder="auto" aria-label="Schichten">
+          </div>
+          <div class="actions">
+            <button id="twOk" class="primary" type="button" disabled>Übernehmen</button>
+            <button id="twBack" class="quiet" type="button" disabled>Zurück zum Original</button>
+          </div>
+          <p class="hint">Wirkt aufs ganze Modell, Vorschau live. Höhe streckt vom Boden aus. Twist dreht um die senkrechte Mitte: unten 0°, oben voller Winkel. Mehr Schichten = rundere Spirale, aber mehr Falzkanten.</p>
+        </fieldset>
+        <details class="more">
+          <summary>Mehr</summary>
+          <div class="body">
+            <div class="actions">
+              <button id="mSym" type="button">Symmetrisch machen</button>
+              <button id="mMirror" type="button">Spiegeln</button>
+              <button id="mFloor" type="button">Auf den Boden</button>
+            </div>
+            <div class="row">
+              <div><label for="mN">Punkte verringern auf</label><input id="mN" class="num" type="number" min="8" max="400" step="1" value="60"></div>
+              <button id="mReduce" type="button">Verringern</button>
+            </div>
+            <p class="hint">Symmetrisch machen: die Hälfte mit der Auswahl (sonst links bzw. vorne) wird auf die andere Seite gespiegelt.</p>
+          </div>
+        </details>
+        <details class="more">
+          <summary>Tasten und Gesten</summary>
+          <div class="body">
+            <ul class="keys">
+              <li><b>Klick</b> wählt · <b>⇧ Klick</b> dazu · <b>⇧ Ziehen</b> Rahmen</li>
+              <li><b>Ziehen ins Leere</b> dreht · <b>2 Finger</b> verschiebt · <b>Kneifen</b> zoomt</li>
+              <li>Nach G, S, R, E: <b>X Y Z</b> sperrt auf Achse, <b>Zahl</b> tippen, <b>Enter</b> fertig, <b>Esc</b> zurück</li>
+              <li><b>⇧</b> beim Ziehen = ohne Raster · <b>A</b> alles · <b>H</b> einpassen · <b>⌘Z</b> zurück</li>
+            </ul>
+          </div>
+        </details>
+        <p id="eStatus" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <!-- 4 Speichern -->
+      <section class="stepcard" data-panel="speichern" role="tabpanel" hidden>
+        <div><label for="name">Name</label><input id="name" type="text" value="Modell" maxlength="60"></div>
+        <ul id="checks" class="issues" hidden></ul>
+        <div class="actions">
+          <button id="save" class="primary" type="button">OBJ speichern</button>
+          <button id="copy" type="button">OBJ kopieren</button>
+        </div>
+        <p id="saveStatus" class="hint" role="status" aria-live="polite"></p>
+        <p class="hint">Weiter geht es im <a href="https://claude.ai/artifact/G9gbUMr5nB2SgaRoBXwZhC" target="_blank" rel="noopener">Faltwerk Abwickler</a>: Datei laden oder den kopierten Text einfügen.</p>
+        <details class="more">
+          <summary>Was beim Speichern passiert</summary>
+          <div class="body"><ol id="log" class="log"></ol></div>
+        </details>
+      </section>
+    </section>
+
+    <section class="view" aria-label="Modell">
+      <div class="viewer" id="viewer">
+        <canvas id="view" tabindex="0" aria-label="3D-Ansicht des Modells"></canvas>
+        <canvas id="draw" hidden aria-label="Zeichenfläche"></canvas>
+        <span id="tag" class="tag">Modell</span>
+        <div class="views" id="views">
+          <button type="button" data-view="front" title="von vorne">Vorne</button>
+          <button type="button" data-view="side" title="von rechts">Seite</button>
+          <button type="button" data-view="top" title="von oben">Oben</button>
+          <button type="button" data-view="3d">3D</button>
+          <button type="button" data-view="fit" title="einpassen (H)">⤢</button>
+        </div>
+        <span id="help" class="help">Ziehen dreht · 2 Finger verschieben · Kneifen zoomt</span>
+        <div class="bar" id="drawBar" hidden>
+          <button id="dDone" class="primary" type="button">✓ Fertig</button>
+          <button id="dUndo" type="button">↶ Punkt</button>
+          <button id="dCancel" type="button">✕</button>
+          <label id="dOpBox" hidden>Foto <input id="dOp" type="range" min="0" max="1" step="0.05" value="0.6"></label>
+          <span class="grow"></span>
+          <span id="dMsg" class="msg">Punkte klicken</span>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </section>
+  </div>
+</div>
+<script>
+// Faltwerk mesh pipeline: merge duplicates, straighten bent polygons, triangulate, orient, reduce to a maximum vertex count, drop needless points.
+const Mesh = (() => {
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const len = (a) => Math.hypot(a[0], a[1], a[2]);
+  const triNormal = (p, q, r) => cross(sub(q, p), sub(r, p));
+  const edgeKey = (a, b) => (a < b ? a + ',' + b : b + ',' + a);
+
+  function validate(raw) {
+    if (!raw || !Array.isArray(raw.vertices) || !Array.isArray(raw.faces)) throw new Error('Das Modell hat keine Punkt- oder Flächenliste.');
+    const verts = raw.vertices.map((v, i) => {
+      if (!Array.isArray(v) || v.length < 3 || v.slice(0, 3).some((x) => !Number.isFinite(Number(x)))) throw new Error('Punkt ' + (i + 1) + ' ist ungültig.');
+      return [Number(v[0]), Number(v[1]), Number(v[2])];
+    });
+    const faces = [];
+    raw.faces.forEach((f) => {
+      if (!Array.isArray(f)) return;
+      const idx = f.map((x) => Math.round(Number(x)));
+      if (idx.length >= 3 && idx.every((x) => Number.isInteger(x) && x >= 0 && x < verts.length)) faces.push(idx);
+    });
+    if (verts.length < 4 || faces.length < 4) throw new Error('Das Modell ist zu klein (mindestens 4 Punkte und 4 Flächen).');
+    return { verts, faces };
+  }
+
+  function bboxDiag(verts) {
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    verts.forEach((v) => { for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], v[k]); hi[k] = Math.max(hi[k], v[k]); } });
+    return { lo, hi, diag: len(sub(hi, lo)) || 1 };
+  }
+
+  // 1. Merge vertices closer than a tolerance, drop degenerate and duplicate faces.
+  function mergeDuplicates(verts, faces) {
+    const eps = bboxDiag(verts).diag * 1e-5;
+    const grid = new Map(), remap = [], out = [];
+    verts.forEach((v, i) => {
+      const key = v.map((x) => Math.round(x / eps)).join(',');
+      if (grid.has(key)) remap[i] = grid.get(key);
+      else { grid.set(key, out.length); remap[i] = out.length; out.push(v.slice()); }
+    });
+    const seen = new Set(), outFaces = [];
+    let dupFaces = 0, degenerate = 0;
+    faces.forEach((f) => {
+      const poly = [];
+      f.map((i) => remap[i]).forEach((i) => { if (poly[poly.length - 1] !== i) poly.push(i); });
+      if (poly.length > 1 && poly[0] === poly[poly.length - 1]) poly.pop();
+      if (new Set(poly).size < 3 || new Set(poly).size !== poly.length) { degenerate++; return; }
+      const key = poly.slice().sort((a, b) => a - b).join(',');
+      if (seen.has(key)) { dupFaces++; return; }
+      seen.add(key); outFaces.push(poly);
+    });
+    return { verts: out, faces: outFaces, dupVerts: verts.length - out.length, dupFaces, degenerate };
+  }
+
+  // 2. Triangulate polygons by ear clipping in their own plane.
+  function triangulatePolygon(verts, poly) {
+    if (poly.length === 3) return [poly.slice()];
+    const n = [0, 0, 0];
+    for (let i = 0; i < poly.length; i++) {
+      const a = verts[poly[i]], b = verts[poly[(i + 1) % poly.length]];
+      n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]);
+    }
+    const ax = Math.abs(n[0]) > Math.abs(n[1]) ? (Math.abs(n[0]) > Math.abs(n[2]) ? 0 : 2) : (Math.abs(n[1]) > Math.abs(n[2]) ? 1 : 2);
+    const u = (ax + 1) % 3, w = (ax + 2) % 3, sgn = n[ax] >= 0 ? 1 : -1;
+    const p2 = (i) => [verts[i][u], verts[i][w]];
+    const crs = (o, a, b) => ((a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])) * sgn;
+    const inside = (p, a, b, c) => crs(a, b, p) >= 0 && crs(b, c, p) >= 0 && crs(c, a, p) >= 0;
+    const ring = poly.slice(), tris = [];
+    let guard = 0;
+    while (ring.length > 3 && guard++ < 1000) {
+      let clipped = false;
+      for (let i = 0; i < ring.length; i++) {
+        const ia = ring[(i + ring.length - 1) % ring.length], ib = ring[i], ic = ring[(i + 1) % ring.length];
+        const a = p2(ia), b = p2(ib), c = p2(ic);
+        if (crs(a, b, c) <= 1e-9 * Math.hypot(b[0] - a[0], b[1] - a[1]) * Math.hypot(c[0] - b[0], c[1] - b[1])) continue; // reflex or collinear
+        if (ring.some((j) => j !== ia && j !== ib && j !== ic && inside(p2(j), a, b, c))) continue;
+        tris.push([ia, ib, ic]); ring.splice(i, 1); clipped = true; break;
+      }
+      if (!clipped) break;
+    }
+    if (ring.length === 3) tris.push(ring.slice());
+    else for (let i = 1; i < ring.length - 1; i++) tris.push([ring[0], ring[i], ring[i + 1]]); // fallback: fan
+    return tris;
+  }
+
+  function triangulate(verts, faces) {
+    const tris = [], seen = new Set();
+    faces.forEach((f) => triangulatePolygon(verts, f).forEach((t) => {
+      const key = t.slice().sort((a, b) => a - b).join(',');
+      if (seen.has(key)) return;
+      if (len(triNormal(verts[t[0]], verts[t[1]], verts[t[2]])) < 1e-12) return;
+      seen.add(key); tris.push(t);
+    }));
+    return tris;
+  }
+
+  // 3. Make neighbouring triangles agree on orientation, then point every part outward.
+  function orient(verts, tris) {
+    const byEdge = new Map();
+    tris.forEach((t, i) => { for (let k = 0; k < 3; k++) { const key = edgeKey(t[k], t[(k + 1) % 3]); if (!byEdge.has(key)) byEdge.set(key, []); byEdge.get(key).push(i); } });
+    const hasDirected = (t, a, b) => (t[0] === a && t[1] === b) || (t[1] === a && t[2] === b) || (t[2] === a && t[0] === b);
+    const done = new Array(tris.length).fill(false);
+    let flipped = 0, components = 0;
+    for (let s = 0; s < tris.length; s++) {
+      if (done[s]) continue;
+      components++;
+      const comp = [s]; done[s] = true;
+      for (let qi = 0; qi < comp.length; qi++) {
+        const t = tris[comp[qi]];
+        for (let k = 0; k < 3; k++) {
+          const a = t[k], b = t[(k + 1) % 3];
+          byEdge.get(edgeKey(a, b)).forEach((j) => {
+            if (done[j]) return;
+            if (hasDirected(tris[j], a, b)) { tris[j].reverse(); flipped++; }
+            done[j] = true; comp.push(j);
+          });
+        }
+      }
+      let vol = 0;
+      comp.forEach((i) => { const [a, b, c] = tris[i].map((x) => verts[x]); vol += dot(a, cross(b, c)); });
+      if (vol < 0) { comp.forEach((i) => tris[i].reverse()); flipped += comp.length; }
+    }
+    return { flipped, components };
+  }
+
+  function compact(verts, tris) {
+    const map = new Map(), outV = [];
+    const outT = tris.map((t) => t.map((i) => { if (!map.has(i)) { map.set(i, outV.length); outV.push(verts[i].slice()); } return map.get(i); }));
+    return { verts: outV, tris: outT };
+  }
+
+  function planeQuadric(p, q, r) {
+    const n = triNormal(p, q, r), l = len(n);
+    if (l < 1e-12) return new Float64Array(10);
+    const [a, b, c] = [n[0] / l, n[1] / l, n[2] / l], d = -dot([a, b, c], p), w = l / 2;
+    return Float64Array.from([a * a, a * b, a * c, a * d, b * b, b * c, b * d, c * c, c * d, d * d].map((x) => x * w));
+  }
+  const qCost = (q, v) => {
+    const [x, y, z] = v;
+    return q[0] * x * x + 2 * q[1] * x * y + 2 * q[2] * x * z + 2 * q[3] * x + q[4] * y * y + 2 * q[5] * y * z + 2 * q[6] * y + q[7] * z * z + 2 * q[8] * z + q[9];
+  };
+
+  // 4a. Quadric edge collapse down to `target` vertices, keeping the surface closed and unfolded.
+  // With `limit`, only collapses onto an existing corner that change the shape by less than `limit` are made.
+  function reduce(verts, tris, target, limit) {
+    const Q = verts.map(() => new Float64Array(10));
+    tris.forEach((t) => { const q = planeQuadric(...t.map((i) => verts[i])); t.forEach((i) => { for (let k = 0; k < 10; k++) Q[i][k] += q[k]; }); });
+    // open edges: an extra plane through the edge, upright on its triangle, keeps the outline in place
+    const ec = new Map();
+    tris.forEach((t) => { for (let k = 0; k < 3; k++) { const key = edgeKey(t[k], t[(k + 1) % 3]); ec.set(key, (ec.get(key) || 0) + 1); } });
+    tris.forEach((t) => {
+      const n = triNormal(...t.map((i) => verts[i]));
+      for (let k = 0; k < 3; k++) {
+        const a = t[k], b = t[(k + 1) % 3];
+        if (ec.get(edgeKey(a, b)) !== 1) continue;
+        const e = sub(verts[b], verts[a]), up = n, l = len(up); // the normal: the plane holds the edge and stands upright on the triangle
+        if (l < 1e-12) continue;
+        const p2 = verts[a].map((x, j) => x + up[j] / l * len(e));
+        const q = planeQuadric(verts[a], verts[b], p2).map((x) => x * 10);
+        [a, b].forEach((i) => { for (let j = 0; j < 10; j++) Q[i][j] += q[j]; });
+      }
+    });
+    let alive = tris.map(() => true), count = new Set(tris.flat()).size;
+    while (count > target && count > 4) {
+      const vt = new Map(), nb = new Map();
+      tris.forEach((t, i) => {
+        if (!alive[i]) return;
+        t.forEach((v, k) => {
+          if (!vt.has(v)) { vt.set(v, []); nb.set(v, new Set()); }
+          vt.get(v).push(i); nb.get(v).add(t[(k + 1) % 3]); nb.get(v).add(t[(k + 2) % 3]);
+        });
+      });
+      const cands = [], seen = new Set();
+      tris.forEach((t, i) => {
+        if (!alive[i]) return;
+        for (let k = 0; k < 3; k++) {
+          const a = t[k], b = t[(k + 1) % 3], key = edgeKey(a, b);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const q = Q[a].map((x, j) => x + Q[b][j]);
+          let best = null;
+          (limit != null ? [verts[a], verts[b]] : [verts[a], verts[b], verts[a].map((x, j) => (x + verts[b][j]) / 2)]).forEach((p) => { const c = qCost(q, p); if (!best || c < best.c) best = { c, p }; });
+          cands.push({ a, b, p: best.p, c: best.c });
+        }
+      });
+      cands.sort((x, y) => x.c - y.c);
+      let did = false;
+      for (const { a, b, p, c } of cands) {
+        if (limit != null && c > limit) break;
+        const shared = [...nb.get(a)].filter((x) => nb.get(b).has(x));
+        const edgeTris = vt.get(a).filter((i) => tris[i].includes(b));
+        if (shared.length !== edgeTris.length) continue; // link condition: keeps the surface manifold
+        let ok = true;
+        for (const i of new Set([...vt.get(a), ...vt.get(b)])) {
+          const t = tris[i];
+          if (t.includes(a) && t.includes(b)) continue;
+          const pts = t.map((x) => verts[x]);
+          const npts = t.map((x) => (x === a || x === b ? p : verts[x]));
+          const n0 = triNormal(...pts), n1 = triNormal(...npts);
+          if (len(n1) < 1e-9 * (len(n0) + 1e-12) || dot(n0, n1) <= 0.2 * len(n0) * len(n1)) { ok = false; break; }
+        }
+        if (!ok) continue;
+        vt.get(a).forEach((i) => { if (tris[i].includes(b)) alive[i] = false; });
+        vt.get(b).forEach((i) => { if (alive[i]) tris[i] = tris[i].map((x) => (x === b ? a : x)); });
+        verts[a] = p.slice();
+        for (let k = 0; k < 10; k++) Q[a][k] += Q[b][k];
+        count--; did = true; break;
+      }
+      if (!did) break;
+      const keep = alive.map((x, i) => x);
+      tris = tris.filter((t, i) => keep[i]); alive = tris.map(() => true);
+    }
+    return tris.filter((t, i) => alive[i]);
+  }
+
+  // 4b. Split longest edges until `target` vertices; the shape does not change.
+  function refine(verts, tris, target) {
+    let count = new Set(tris.flat()).size;
+    while (count < target) {
+      let best = null;
+      tris.forEach((t) => { for (let k = 0; k < 3; k++) { const a = t[k], b = t[(k + 1) % 3], l = len(sub(verts[a], verts[b])); if (!best || l > best.l + 1e-9) best = { a, b, l }; } });
+      const { a, b } = best, m = verts.length;
+      verts.push(verts[a].map((x, j) => (x + verts[b][j]) / 2));
+      const next = [];
+      tris.forEach((t) => {
+        const ia = t.indexOf(a), ib = t.indexOf(b);
+        if (ia < 0 || ib < 0) { next.push(t); return; }
+        const c = t.find((x) => x !== a && x !== b);
+        const r = (t1) => t1; // keep orientation by substituting in place
+        const t1 = t.map((x) => (x === b ? m : x)), t2 = t.map((x) => (x === a ? m : x));
+        next.push(r(t1), r(t2));
+      });
+      tris = next; count++;
+    }
+    return tris;
+  }
+
+  // 2b. Make every input polygon (4+ corners) exactly flat, so its triangles get no fold lines.
+  // Only polygons that are already almost flat (all corners within `tol` mm of one plane) are touched;
+  // each corner moves to the least-squares meeting point of the planes of the polygons it belongs to.
+  function flattenPolygons(verts, faces, tol) {
+    const polys = faces.filter((p) => p.length > 3);
+    if (!polys.length) return { polys: 0, moved: 0, max: 0 };
+    const orig = verts.map((v) => v.slice());
+    const plane = (p) => {
+      const n = [0, 0, 0], c = [0, 0, 0];
+      p.forEach((i, k) => { const a = verts[i], b = verts[p[(k + 1) % p.length]]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); for (let j = 0; j < 3; j++) c[j] += a[j] / p.length; });
+      const l = len(n) || 1, u = n.map((x) => x / l);
+      return { n: u, d: dot(u, c) };
+    };
+    const use = polys.filter((p) => { const { n, d } = plane(p); const dev = Math.max(...p.map((i) => Math.abs(dot(n, verts[i]) - d))); return dev > 1e-6 && dev <= tol; });
+    if (!use.length) return { polys: 0, moved: 0, max: 0 };
+    const vp = new Map();
+    use.forEach((p, k) => p.forEach((i) => { if (!vp.has(i)) vp.set(i, []); vp.get(i).push(k); }));
+    // small steps, each pulled towards the previous position, so a corner shared by almost
+    // parallel polygons only moves across them, not along them
+    const lam = 0.05;
+    for (let it = 0; it < 15; it++) {
+      const P = use.map(plane);
+      vp.forEach((list, i) => {
+        // (sum n n^T + lam I) x = sum n d + lam x_prev
+        const M = [[lam, 0, 0], [0, lam, 0], [0, 0, lam]], r = verts[i].map((x) => x * lam);
+        list.forEach((k) => { const { n, d } = P[k]; for (let a = 0; a < 3; a++) { r[a] += n[a] * d; for (let b = 0; b < 3; b++) M[a][b] += n[a] * n[b]; } });
+        const x = solve3(M, r);
+        if (x) verts[i] = x;
+      });
+    }
+    let max = 0, moved = 0;
+    vp.forEach((l, i) => { const dd = len(sub(verts[i], orig[i])); max = Math.max(max, dd); if (dd > 1e-6) moved++; });
+    if (max > tol * 2) { orig.forEach((v, i) => { verts[i] = v; }); return null; }
+    return { polys: use.length, moved, max };
+  }
+  function solve3(M, r) {
+    const [[a, b, c], [d, e, f], [g, h, k]] = M;
+    const det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g);
+    if (Math.abs(det) < 1e-18) return null;
+    return [
+      (r[0] * (e * k - f * h) - b * (r[1] * k - f * r[2]) + c * (r[1] * h - e * r[2])) / det,
+      (a * (r[1] * k - f * r[2]) - r[0] * (d * k - f * g) + c * (d * r[2] - r[1] * g)) / det,
+      (a * (e * r[2] - r[1] * h) - b * (d * r[2] - r[1] * g) + r[0] * (d * h - e * g)) / det,
+    ];
+  }
+
+  function stats(verts, tris) {
+    const edges = new Map();
+    tris.forEach((t) => { for (let k = 0; k < 3; k++) { const key = edgeKey(t[k], t[(k + 1) % 3]); edges.set(key, (edges.get(key) || 0) + 1); } });
+    let open = 0, nonManifold = 0;
+    edges.forEach((c) => { if (c === 1) open++; else if (c > 2) nonManifold++; });
+    const V = verts.length, E = edges.size, F = tris.length;
+    const closed = open === 0 && nonManifold === 0;
+    const { lo, hi } = bboxDiag(verts);
+    return { V, E, F, open, nonManifold, closed, holes: closed ? Math.max(0, Math.round((2 - (V - E + F)) / 2)) : null, size: hi.map((x, i) => x - lo[i]) };
+  }
+
+  // target = highest allowed number of corner points (null: clean only).
+  // opt.exact also refines up to exactly `target`; opt.flatten straightens bent polygons and drops needless points.
+  function build(raw, target, opt) {
+    const o = Object.assign({ exact: false, flatten: true }, opt || {});
+    const log = [];
+    const { verts: v0, faces: f0 } = validate(raw);
+    log.push(`Rohmodell: ${v0.length} Punkte, ${f0.length} Flächen`);
+    // models in metres (longest side of a few units) are taken as metres and turned into millimetres
+    const b0 = bboxDiag(v0), long0 = Math.max(...b0.hi.map((x, k) => x - b0.lo[k]));
+    if (long0 > 0 && long0 <= 5) { v0.forEach((v) => { for (let k = 0; k < 3; k++) v[k] *= 1000; }); log.push(`Einheit Meter erkannt (längste Seite ${String(+long0.toFixed(3)).replace('.', ',')}), in Millimeter umgerechnet`); }
+    const m = mergeDuplicates(v0, f0);
+    log.push(`Doppelte entfernt: ${m.dupVerts} Punkte, ${m.dupFaces} Flächen` + (m.degenerate ? `, ${m.degenerate} entartete Flächen` : ''));
+    if (o.flatten) {
+      const { lo, hi } = bboxDiag(m.verts), tol = Math.max(0.3, Math.min(1, len(sub(hi, lo)) * 0.005));
+      const p = flattenPolygons(m.verts, m.faces, tol);
+      if (p === null) log.push('Verbogene Flächen: Geraderücken hätte die Form verändert, ausgelassen');
+      else if (p.moved) log.push(`Verbogene Flächen geradegerückt: ${p.polys}, ${p.moved} Punkte verschoben (höchstens ${p.max.toFixed(2).replace('.', ',')} mm)`);
+    }
+    let tris = triangulate(m.verts, m.faces);
+    log.push(`Trianguliert: ${tris.length} Dreiecke`);
+    let { verts, tris: t1 } = compact(m.verts, tris);
+    tris = t1;
+    const or = orient(verts, tris);
+    log.push(`Ausrichtung: ${or.flipped} Dreiecke gedreht, ${or.components} Körper`);
+    const before = verts.length;
+    if (target != null && before > target) { tris = reduce(verts, tris, target); log.push(`Reduziert: ${before} → ${target} Punkte`); }
+    else if (target != null && o.exact && before < target) { tris = refine(verts, tris, target); log.push(`Verfeinert: ${before} → ${target} Punkte (lange Kanten geteilt)`); }
+    else if (target != null) log.push(`Punktzahl: ${before} liegt schon unter ${target}, nichts reduziert`);
+    ({ verts, tris } = compact(verts, tris));
+    orient(verts, tris);
+    if (o.flatten) {
+      // points in the middle of a flat side or of a straight edge only add parts and glue numbers
+      const n0 = verts.length;
+      const area = tris.reduce((a, t) => a + len(triNormal(...t.map((i) => verts[i]))) / 2, 0), dg = bboxDiag(verts).diag;
+      tris = reduce(verts, tris, 4, area * (dg * 1e-5) ** 2);
+      ({ verts, tris } = compact(verts, tris));
+      orient(verts, tris);
+      if (verts.length < n0) log.push(`Überflüssige Punkte entfernt: ${n0 - verts.length} (mitten auf ebenen Seiten oder geraden Kanten)`);
+    }
+    const s = stats(verts, tris);
+    if (target != null && s.V > target) log.push(`Hinweis: nur ${s.V} statt ${target} Punkte erreichbar, ohne die Form zu zerstören`);
+    return { verts, tris, log, stats: s };
+  }
+
+  // Cut a mesh with the plane coordinate[axis] = value and keep one side (side 1: above, -1: below).
+  // cap closes the cut with flat faces (holes in the cut, e.g. a hollow cup, are bridged in). Returns raw {vertices, faces}.
+  function cut(verts0, tris, axis, value, side, cap) {
+    const eps = bboxDiag(verts0).diag * 1e-6;
+    const verts = verts0.map((v) => v.slice());
+    const d = verts.map((v) => { const x = (v[axis] - value) * side; return Math.abs(x) < eps ? 0 : x; });
+    d.forEach((x, i) => { if (x === 0) verts[i][axis] = value; });
+    const mid = new Map();
+    const midpoint = (a, b) => {
+      const key = edgeKey(a, b);
+      if (!mid.has(key)) {
+        const t = d[a] / (d[a] - d[b]), p = verts[a].map((x, k) => x + (verts[b][k] - x) * t);
+        p[axis] = value; mid.set(key, verts.length); verts.push(p); d.push(0);
+      }
+      return mid.get(key);
+    };
+    const faces = [];
+    tris.forEach((t) => {
+      const poly = [];
+      for (let k = 0; k < 3; k++) {
+        const a = t[k], b = t[(k + 1) % 3];
+        if (d[a] >= 0) poly.push(a);
+        if ((d[a] > 0 && d[b] < 0) || (d[a] < 0 && d[b] > 0)) poly.push(midpoint(a, b));
+      }
+      if (poly.length >= 3 && poly.some((i) => d[i] > 0)) for (let k = 1; k < poly.length - 1; k++) faces.push([poly[0], poly[k], poly[k + 1]]);
+    });
+    if (cap) {
+      // directed edges in the plane without a partner form the rim of the cut
+      const dir = new Set();
+      faces.forEach((f) => f.forEach((a, k) => dir.add(a + ',' + f[(k + 1) % 3])));
+      const next = new Map();
+      faces.forEach((f) => f.forEach((a, k) => { const b = f[(k + 1) % 3]; if (d[a] === 0 && d[b] === 0 && !dir.has(b + ',' + a)) next.set(b, a); }));
+      const loops = [], used = new Set();
+      next.forEach((_, s) => {
+        if (used.has(s)) return;
+        const loop = []; let c = s;
+        while (c != null && !used.has(c)) { used.add(c); loop.push(c); c = next.get(c); }
+        if (c === s && loop.length >= 3) loops.push(loop);
+      });
+      const u = (axis + 1) % 3, w = (axis + 2) % 3, p2 = (i) => [verts[i][u], verts[i][w]];
+      const area = (l) => { let s = 0; l.forEach((i, k) => { const a = p2(i), b = p2(l[(k + 1) % l.length]); s += a[0] * b[1] - b[0] * a[1]; }); return s / 2; };
+      const inPoly = (p, l) => { let c = false; l.forEach((i, k) => { const a = p2(i), b = p2(l[(k + 1) % l.length]); if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < a[0] + (p[1] - a[1]) * (b[0] - a[0]) / (b[1] - a[1])) c = !c; }); return c; };
+      if (loops.length) {
+        const sgn = Math.sign(area(loops.reduce((m, l) => (Math.abs(area(l)) > Math.abs(area(m)) ? l : m))));
+        const outers = loops.filter((l) => Math.sign(area(l)) === sgn).map((l) => ({ l: l.slice(), holes: [] }));
+        loops.filter((l) => Math.sign(area(l)) !== sgn).forEach((h) => {
+          const host = outers.filter((o) => inPoly(p2(h[0]), o.l)).sort((a, b) => Math.abs(area(a.l)) - Math.abs(area(b.l)))[0];
+          if (host) host.holes.push(h);
+        });
+        const segX = (p, q, r, s) => {
+          const c = (a, b, e) => (b[0] - a[0]) * (e[1] - a[1]) - (b[1] - a[1]) * (e[0] - a[0]);
+          return c(p, q, r) * c(p, q, s) < 0 && c(r, s, p) * c(r, s, q) < 0;
+        };
+        outers.forEach((o) => {
+          // bridge each hole into the outer ring, rightmost hole first
+          o.holes.sort((a, b) => Math.max(...b.map((i) => p2(i)[0])) - Math.max(...a.map((i) => p2(i)[0])));
+          o.holes.forEach((h) => {
+            const hi = h.reduce((m, i) => (p2(i)[0] > p2(m)[0] ? i : m), h[0]), hp = p2(hi);
+            const rings = [o.l, ...o.holes];
+            const ok = (j) => rings.every((r) => r.every((a, k) => { const b = r[(k + 1) % r.length]; return a === j || b === j || a === hi || b === hi || !segX(hp, p2(j), p2(a), p2(b)); }));
+            const cand = o.l.map((j, k) => ({ j, k, dd: Math.hypot(p2(j)[0] - hp[0], p2(j)[1] - hp[1]) })).sort((a, b) => a.dd - b.dd);
+            const pick = cand.find((c) => ok(c.j)) || cand[0];
+            const hk = h.indexOf(hi), hr = [...h.slice(hk), ...h.slice(0, hk), hi];
+            o.l.splice(pick.k + 1, 0, ...hr, pick.j);
+          });
+          // the rim loop already runs the way the cap faces (towards the removed side)
+          triangulatePolygon(verts, o.l).forEach((t) => faces.push(t));
+        });
+      }
+    }
+    return { vertices: verts, faces };
+  }
+
+  function toOBJ(model, name) {
+    const lines = [`# Faltwerk Modell: ${name}`, `# ${model.stats.V} Eckpunkte, ${model.stats.F} Dreiecke, Einheit mm`, `o ${name.replace(/\s+/g, '_')}`];
+    model.verts.forEach((v) => lines.push('v ' + v.map((x) => +x.toFixed(3)).join(' ')));
+    model.tris.forEach((t) => lines.push('f ' + t.map((i) => i + 1).join(' ')));
+    return lines.join('\n') + '\n';
+  }
+
+  function parseOBJ(text) {
+    const vertices = [], faces = [];
+    text.split(/\r?\n/).forEach((line) => {
+      const p = line.trim().split(/\s+/);
+      if (p[0] === 'v') vertices.push(p.slice(1, 4).map(Number));
+      else if (p[0] === 'f') faces.push(p.slice(1).map((s) => { const i = parseInt(s.split('/')[0], 10); return i < 0 ? vertices.length + i : i - 1; }));
+    });
+    return { vertices, faces };
+  }
+
+  return { build, cut, toOBJ, parseOBJ, stats, triangulate };
+})();
+if (typeof module !== 'undefined') module.exports = Mesh;
+
+</script>
+<script>
+// Faltwerk Werkstatt: polygon models for editing by hand (shapes, extrude, revolve, edit tools) and a silhouette hull from photos.
+// A model is { v: [[x, y, z], ...], f: [[i, j, k, ...], ...] }, mm, y up, faces counter-clockwise seen from outside.
+const Werk = (() => {
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const len = (a) => Math.hypot(a[0], a[1], a[2]);
+  const unit = (a) => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+  const ek = (a, b) => (a < b ? a + ',' + b : b + ',' + a);
+  const clone = (m) => ({ v: m.v.map((p) => p.slice()), f: m.f.map((f) => f.slice()) });
+  const eachEdge = (f, fn) => f.forEach((a, k) => fn(a, f[(k + 1) % f.length], k));
+  const hasDir = (f, a, b) => f.some((x, k) => x === a && f[(k + 1) % f.length] === b);
+
+  // Newell normal, length = 2 × area
+  function areaNormal(m, f) {
+    const n = [0, 0, 0];
+    eachEdge(f, (i, j) => { const a = m.v[i], b = m.v[j]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); });
+    return n;
+  }
+  const normal = (m, f) => unit(areaNormal(m, f));
+  const centroid = (m, ids) => { const c = [0, 0, 0]; ids.forEach((i) => { for (let k = 0; k < 3; k++) c[k] += m.v[i][k] / ids.length; }); return c; };
+  function bbox(m, ids) {
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    (ids || m.v.map((_, i) => i)).forEach((i) => { for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], m.v[i][k]); hi[k] = Math.max(hi[k], m.v[i][k]); } });
+    return { lo, hi, size: hi.map((x, k) => x - lo[k]), mid: hi.map((x, k) => (x + lo[k]) / 2) };
+  }
+  function edgeMap(m) {
+    const em = new Map();
+    m.f.forEach((f, i) => eachEdge(f, (a, b) => { const key = ek(a, b); if (!em.has(key)) em.set(key, { a: Math.min(a, b), b: Math.max(a, b), faces: [] }); em.get(key).faces.push(i); }));
+    return em;
+  }
+  function stats(m) {
+    const em = edgeMap(m);
+    let open = 0, many = 0;
+    em.forEach((e) => { if (e.faces.length === 1) open++; else if (e.faces.length > 2) many++; });
+    return { V: m.v.length, F: m.f.length, E: em.size, open, many, closed: !open && !many, size: m.v.length ? bbox(m).size : [0, 0, 0] };
+  }
+
+  // drop repeated corners, degenerate faces, and faces that exist twice (an inner skin)
+  function cleanup(m) {
+    let f = m.f.map((p) => p.filter((x, k) => x !== p[(k + 1) % p.length])).filter((p) => new Set(p).size >= 3 && p.length === new Set(p).size);
+    const seen = new Map();
+    f.forEach((p, i) => { const key = p.slice().sort((a, b) => a - b).join(','); if (!seen.has(key)) seen.set(key, []); seen.get(key).push(i); });
+    const drop = new Set();
+    seen.forEach((l) => { if (l.length > 1) { if (l.length % 2 === 0) l.forEach((i) => drop.add(i)); else l.slice(1).forEach((i) => drop.add(i)); } });
+    m.f = f.filter((_, i) => !drop.has(i));
+    return compact(m);
+  }
+  function compact(m) {
+    const used = new Map(), v = [];
+    m.f.forEach((p) => p.forEach((i) => { if (!used.has(i)) { used.set(i, v.length); v.push(m.v[i]); } }));
+    // keep unused-but-referenced order stable for the user: renumber by first use
+    m.f = m.f.map((p) => p.map((i) => used.get(i)));
+    m.v = v;
+    return m;
+  }
+
+  // neighbouring faces run a shared edge in opposite directions; every body is turned outward by its volume
+  function orient(m) {
+    const em = new Map();
+    m.f.forEach((f, i) => eachEdge(f, (a, b) => { const key = ek(a, b); if (!em.has(key)) em.set(key, []); em.get(key).push(i); }));
+    const done = new Array(m.f.length).fill(false);
+    for (let s = 0; s < m.f.length; s++) {
+      if (done[s]) continue;
+      done[s] = true;
+      const comp = [s], queue = [s];
+      while (queue.length) {
+        const i = queue.pop();
+        eachEdge(m.f[i], (a, b) => {
+          (em.get(ek(a, b)) || []).forEach((j) => {
+            if (done[j]) return;
+            if (hasDir(m.f[j], a, b)) m.f[j].reverse();
+            done[j] = true; comp.push(j); queue.push(j);
+          });
+        });
+      }
+      let vol = 0;
+      comp.forEach((i) => { const f = m.f[i], p = m.v[f[0]]; for (let k = 1; k < f.length - 1; k++) vol += dot(p, cross(m.v[f[k]], m.v[f[k + 1]])); });
+      if (vol < 0) comp.forEach((i) => m.f[i].reverse());
+    }
+    return m;
+  }
+
+  // Triangles → polygons: neighbouring triangles in one plane become one face (only if the result is a single ring).
+  function fromTris(verts, tris, tolDeg) {
+    const m = { v: verts.map((p) => p.slice()), f: [] };
+    const cosT = Math.cos(((tolDeg == null ? 0.3 : tolDeg) * Math.PI) / 180);
+    const diag = len(bbox({ v: verts }).size) || 1;
+    const N = tris.map((t) => unit(cross(sub(verts[t[1]], verts[t[0]]), sub(verts[t[2]], verts[t[0]]))));
+    const em = new Map();
+    tris.forEach((t, i) => eachEdge(t, (a, b) => { const key = ek(a, b); if (!em.has(key)) em.set(key, []); em.get(key).push(i); }));
+    const region = new Array(tris.length).fill(-1);
+    let nr = 0;
+    tris.forEach((t, s) => {
+      if (region[s] >= 0) return;
+      const n0 = N[s], d0 = dot(n0, verts[t[0]]), list = [s], queue = [s];
+      region[s] = nr;
+      while (queue.length) {
+        const i = queue.pop();
+        eachEdge(tris[i], (a, b) => {
+          const l = em.get(ek(a, b));
+          if (l.length !== 2) return;
+          l.forEach((j) => {
+            if (region[j] >= 0 || dot(N[j], n0) < cosT) return;
+            if (tris[j].some((x) => Math.abs(dot(n0, verts[x]) - d0) > diag * 2e-4)) return;
+            region[j] = nr; list.push(j); queue.push(j);
+          });
+        });
+      }
+      nr++;
+      if (list.length === 1) { m.f.push(t.slice()); return; }
+      const inR = new Set();
+      list.forEach((i) => eachEdge(tris[i], (a, b) => inR.add(a + '>' + b)));
+      const next = new Map();
+      let bad = false;
+      list.forEach((i) => eachEdge(tris[i], (a, b) => { if (inR.has(b + '>' + a)) return; if (next.has(a)) bad = true; next.set(a, b); }));
+      if (!bad && next.size >= 3) {
+        const st = next.keys().next().value, ring = [st];
+        let c = next.get(st);
+        while (c !== st && ring.length <= next.size) { ring.push(c); c = next.get(c); }
+        if (c === st && ring.length === next.size) { m.f.push(ring); return; }
+      }
+      // a ring-shaped flat area: at least pair its triangles into quads
+      const left = new Set(list);
+      list.forEach((i) => {
+        if (!left.has(i)) return;
+        left.delete(i);
+        const t = tris[i];
+        for (let k = 0; k < 3; k++) {
+          const a = t[k], b = t[(k + 1) % 3], c = t[(k + 2) % 3];
+          const j = em.get(ek(a, b)).find((x) => x !== i && left.has(x));
+          if (j == null) continue;
+          const d = tris[j].find((x) => x !== a && x !== b);
+          left.delete(j); m.f.push([a, d, b, c]); return;
+        }
+        m.f.push(t.slice());
+      });
+    });
+    return m;
+  }
+  const toRaw = (m) => ({ vertices: m.v.map((p) => p.slice()), faces: m.f.map((f) => f.slice()) });
+  function triangulate(m) {
+    // fan for convex faces is enough for drawing; export goes through Mesh.build
+    const t = [];
+    m.f.forEach((f) => { for (let k = 1; k < f.length - 1; k++) t.push([f[0], f[k], f[k + 1]]); });
+    return t;
+  }
+
+  // ---------- shapes (standing on y = 0, centred on x and z) ----------
+  function box(w, h, d) {
+    const x = w / 2, z = d / 2;
+    const v = [[-x, 0, -z], [x, 0, -z], [x, 0, z], [-x, 0, z], [-x, h, -z], [x, h, -z], [x, h, z], [-x, h, z]];
+    return orient({ v, f: [[0, 1, 2, 3], [4, 7, 6, 5], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]] });
+  }
+  // n-sided column; top diameter 0 gives a cone or pyramid. A flat side faces the front (+z).
+  function column(db, dt, h, n) {
+    n = Math.max(3, Math.min(64, Math.round(n)));
+    const v = [], f = [], off = Math.PI / 2 - Math.PI / n;
+    const ring = (r, y) => { const s = v.length; for (let k = 0; k < n; k++) { const a = off + (2 * Math.PI * k) / n; v.push([r * Math.cos(a), y, r * Math.sin(a)]); } return s; };
+    const b = ring(db / 2, 0);
+    f.push([...Array(n).keys()].map((k) => b + k));
+    if (dt > 0.01) {
+      const t = ring(dt / 2, h);
+      f.push([...Array(n).keys()].map((k) => t + k));
+      for (let k = 0; k < n; k++) f.push([b + k, b + ((k + 1) % n), t + ((k + 1) % n), t + k]);
+    } else {
+      const apex = v.length; v.push([0, h, 0]);
+      for (let k = 0; k < n; k++) f.push([b + k, b + ((k + 1) % n), apex]);
+    }
+    return orient({ v, f });
+  }
+  function sphere(d, seg, rings) {
+    seg = Math.max(3, Math.min(48, Math.round(seg))); rings = Math.max(2, Math.min(32, Math.round(rings)));
+    const r = d / 2, v = [[0, 0, 0]], f = [];
+    for (let i = 1; i < rings; i++) {
+      const t = (Math.PI * i) / rings, y = r - r * Math.cos(t), rr = r * Math.sin(t);
+      for (let k = 0; k < seg; k++) { const a = (2 * Math.PI * k) / seg + Math.PI / seg; v.push([rr * Math.cos(a), y, rr * Math.sin(a)]); }
+    }
+    const top = v.length; v.push([0, d, 0]);
+    const at = (i, k) => 1 + (i - 1) * seg + (k % seg);
+    for (let k = 0; k < seg; k++) f.push([0, at(1, k), at(1, k + 1)]);
+    for (let i = 1; i < rings - 1; i++) for (let k = 0; k < seg; k++) f.push([at(i, k), at(i + 1, k), at(i + 1, k + 1), at(i, k + 1)]);
+    for (let k = 0; k < seg; k++) f.push([at(rings - 1, k), top, at(rings - 1, k + 1)]);
+    return orient({ v, f });
+  }
+  // flat ring (torus) lying on the table: outer diameter, tube thickness
+  function ring(dOut, thick, seg, tube) {
+    seg = Math.max(3, Math.min(48, Math.round(seg))); tube = Math.max(3, Math.min(24, Math.round(tube)));
+    const r = Math.max(0.5, Math.min(thick, dOut / 2 - 0.5)) / 2, R = dOut / 2 - r;
+    const v = [], f = [];
+    for (let k = 0; k < seg; k++) {
+      const a = (2 * Math.PI * k) / seg;
+      for (let j = 0; j < tube; j++) { const b = (2 * Math.PI * j) / tube + Math.PI / tube; const rr = R + r * Math.cos(b); v.push([rr * Math.cos(a), r + r * Math.sin(b), rr * Math.sin(a)]); }
+    }
+    const at = (k, j) => (k % seg) * tube + (j % tube);
+    for (let k = 0; k < seg; k++) for (let j = 0; j < tube; j++) f.push([at(k, j), at(k, j + 1), at(k + 1, j + 1), at(k + 1, j)]);
+    return orient({ v, f });
+  }
+  function house(w, h, d, roof) {
+    const x = w / 2, z = d / 2;
+    const v = [[-x, 0, -z], [x, 0, -z], [x, 0, z], [-x, 0, z], [-x, h, -z], [x, h, -z], [x, h, z], [-x, h, z], [0, h + roof, -z], [0, h + roof, z]];
+    return orient({ v, f: [[0, 1, 2, 3], [0, 4, 8, 5, 1], [2, 6, 9, 7, 3], [1, 5, 6, 2], [3, 7, 4, 0], [4, 7, 9, 8], [5, 8, 9, 6]] });
+  }
+
+  // ---------- drawn outlines ----------
+  const area2 = (p) => { let s = 0; p.forEach((a, k) => { const b = p[(k + 1) % p.length]; s += a[0] * b[1] - b[0] * a[1]; }); return s / 2; };
+  function selfCrossing(p) {
+    const c = (a, b, e) => (b[0] - a[0]) * (e[1] - a[1]) - (b[1] - a[1]) * (e[0] - a[0]);
+    const n = p.length;
+    for (let i = 0; i < n; i++) for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      const a = p[i], b = p[(i + 1) % n], d = p[j], e = p[(j + 1) % n];
+      if (c(a, b, d) * c(a, b, e) < 0 && c(d, e, a) * c(d, e, b) < 0) return true;
+    }
+    return false;
+  }
+  // closed outline in the front view (x right, y up) pulled into depth along z
+  function extrude2D(pts, depth) {
+    let p = pts.map((q) => q.slice());
+    if (area2(p) < 0) p.reverse();
+    const n = p.length, z = depth / 2, v = [], f = [];
+    p.forEach((q) => v.push([q[0], q[1], z]));
+    p.forEach((q) => v.push([q[0], q[1], -z]));
+    f.push([...Array(n).keys()]);
+    f.push([...Array(n).keys()].map((k) => n + k).reverse());
+    for (let k = 0; k < n; k++) f.push([k, n + k, n + ((k + 1) % n), (k + 1) % n]);
+    return place(orient({ v, f }));
+  }
+  // closed profile (x = distance from the axis, y up) turned around the y axis in n steps
+  function revolve(pts, n) {
+    n = Math.max(3, Math.min(64, Math.round(n)));
+    const ys = pts.map((q) => q[1]), span = Math.max(...ys) - Math.min(...ys) || 1;
+    const tol = Math.max(0.2, span * 0.005);
+    const prof = pts.map((q) => [q[0] <= tol ? 0 : q[0], q[1]]);
+    const v = [], tris = [], ringOf = prof.map(([r, y]) => {
+      if (r === 0) { v.push([0, y, 0]); return { pole: v.length - 1 }; }
+      const s = v.length; for (let k = 0; k < n; k++) { const a = (2 * Math.PI * k) / n + Math.PI / n; v.push([r * Math.cos(a), y, r * Math.sin(a)]); }
+      return { s };
+    });
+    const at = (R, k) => (R.pole != null ? R.pole : R.s + (k % n));
+    prof.forEach((_, i) => {
+      const A = ringOf[i], B = ringOf[(i + 1) % prof.length];
+      if (A.pole != null && B.pole != null) return;
+      for (let k = 0; k < n; k++) {
+        if (A.pole != null) tris.push([A.pole, at(B, k), at(B, k + 1)]);
+        else if (B.pole != null) tris.push([at(A, k), at(B, k), at(A, k + 1)]);
+        else { tris.push([at(A, k), at(B, k), at(B, k + 1)]); tris.push([at(A, k), at(B, k + 1), at(A, k + 1)]); }
+      }
+    });
+    const m = fromTris(v, tris);
+    cleanup(m);
+    return place(orient(m));
+  }
+  // stand on y = 0 and centre on x and z
+  function place(m) {
+    if (!m.v.length) return m;
+    const b = bbox(m);
+    m.v.forEach((p) => { p[0] -= b.mid[0]; p[1] -= b.lo[1]; p[2] -= b.mid[2]; });
+    return m;
+  }
+  function join(a, b) {
+    const o = a.v.length;
+    return { v: [...a.v.map((p) => p.slice()), ...b.v.map((p) => p.slice())], f: [...a.f.map((f) => f.slice()), ...b.f.map((f) => f.map((i) => i + o))] };
+  }
+
+  // ---------- edit tools ----------
+  // Extrude faces as one region per connected group; returns slide info: new corners move along the group's normal.
+  function extrude(m0, ids) {
+    const m = clone(m0), sel = new Set(ids), inSel = new Set();
+    ids.forEach((i) => eachEdge(m0.f[i], (a, b) => inSel.add(a + '>' + b)));
+    // connected groups for their own direction
+    const em = edgeMap(m0), group = new Map();
+    ids.forEach((s) => {
+      if (group.has(s)) return;
+      const q = [s]; group.set(s, s);
+      while (q.length) { const i = q.pop(); eachEdge(m0.f[i], (a, b) => em.get(ek(a, b)).faces.forEach((j) => { if (sel.has(j) && !group.has(j)) { group.set(j, s); q.push(j); } })); }
+    });
+    const gdir = new Map();
+    ids.forEach((i) => { const g = group.get(i), n = areaNormal(m0, m0.f[i]); gdir.set(g, add(gdir.get(g) || [0, 0, 0], n)); });
+    const dup = new Map(), dirOf = new Map();
+    const nv = (a, g) => { if (!dup.has(a)) { dup.set(a, m.v.length); m.v.push(m0.v[a].slice()); dirOf.set(a, unit(gdir.get(g))); } return dup.get(a); };
+    ids.forEach((i) => { const f = m0.f[i], g = group.get(i); eachEdge(f, (a, b) => { if (!inSel.has(b + '>' + a)) m.f.push([a, b, nv(b, g), nv(a, g)]); }); });
+    ids.forEach((i) => { m.f[i] = m0.f[i].map((a) => nv(a, group.get(i))); });
+    const slide = [...dup].map(([a, i]) => ({ i, base: m0.v[a].slice(), dir: dirOf.get(a) }));
+    return { m, slide };
+  }
+  // Inset every face on its own; slide.dir is the inward step per 1 mm of frame width.
+  function inset(m0, ids) {
+    const m = clone(m0), slide = [];
+    ids.forEach((i) => {
+      const f = m0.f[i], n = normal(m0, f), nf = [];
+      f.forEach((a, k) => {
+        const p = m0.v[a], prev = m0.v[f[(k - 1 + f.length) % f.length]], next = m0.v[f[(k + 1) % f.length]];
+        const n1 = unit(cross(n, sub(p, prev))), n2 = unit(cross(n, sub(next, p)));
+        const s = 1 + dot(n1, n2);
+        const dir = s < 0.05 ? n1 : mul(add(n1, n2), 1 / s);
+        const j = m.v.length; m.v.push(p.slice()); nf.push(j);
+        slide.push({ i: j, base: p.slice(), dir });
+      });
+      eachEdge(f, (a, b, k) => m.f.push([a, b, nf[(k + 1) % f.length], nf[k]]));
+      m.f[i] = nf;
+    });
+    return { m, slide };
+  }
+  // several corners become one (at their centre, or at `to`); `at` is where the merged corner ended up
+  function merge(m0, ids, to) {
+    const m = clone(m0), keep = ids[0], set = new Set(ids), at = to ? to.slice() : centroid(m0, ids);
+    m.v[keep] = at.slice();
+    m.f = m.f.map((f) => f.map((i) => (set.has(i) ? keep : i)));
+    cleanup(m);
+    return { m, at };
+  }
+  // delete a corner: it slides into its nearest neighbour, the body stays closed
+  function dissolveVerts(m0, ids) {
+    let m = clone(m0);
+    const pos = ids.map((i) => m0.v[i].slice());
+    pos.forEach((p) => {
+      const i = m.v.findIndex((q) => q[0] === p[0] && q[1] === p[1] && q[2] === p[2]);
+      if (i < 0) return;
+      let best = null;
+      m.f.forEach((f) => eachEdge(f, (a, b) => { const o = a === i ? b : b === i ? a : -1; if (o < 0) return; const d = len(sub(m.v[o], p)); if (!best || d < best.d) best = { o, d }; }));
+      if (!best) return;
+      m.f = m.f.map((f) => f.map((x) => (x === i ? best.o : x)));
+      cleanup(m);
+    });
+    return orient(m);
+  }
+  // remove the fold between two faces: they become one face
+  function dissolveEdge(m0, a, b) {
+    const m = clone(m0);
+    const fs = [];
+    m.f.forEach((f, i) => { if (hasDir(f, a, b) || hasDir(f, b, a)) fs.push(i); });
+    if (fs.length !== 2) return null;
+    let [f1, f2] = fs.map((i) => m.f[i]);
+    if (!hasDir(f1, a, b)) [f1, f2] = [f2, f1];
+    if (!hasDir(f1, a, b) || !hasDir(f2, b, a)) return null;
+    const rot = (f, s) => { const k = f.indexOf(s); return [...f.slice(k), ...f.slice(0, k)]; };
+    const r1 = rot(f1, b), r2 = rot(f2, a); // r1: b … a, r2: a … b
+    const merged = [...r1, ...r2.slice(1, -1)];
+    if (new Set(merged).size !== merged.length) return null;
+    m.f = m.f.filter((_, i) => !fs.includes(i));
+    m.f.push(merged);
+    return m;
+  }
+  // split edges in the middle; returns new corner indices
+  function splitEdges(m0, edges) {
+    const m = clone(m0), made = [];
+    edges.forEach(([a, b]) => {
+      const j = m.v.length; m.v.push(m.v[a].map((x, k) => (x + m.v[b][k]) / 2)); made.push(j);
+      m.f = m.f.map((f) => {
+        const out = [];
+        eachEdge(f, (x, y) => { out.push(x); if ((x === a && y === b) || (x === b && y === a)) out.push(j); });
+        return out;
+      });
+    });
+    return { m, made };
+  }
+  // connect two corners of the same face: the face is cut in two (a new fold)
+  function connect(m0, a, b) {
+    const m = clone(m0);
+    const i = m.f.findIndex((f) => { const ia = f.indexOf(a), ib = f.indexOf(b); if (ia < 0 || ib < 0) return false; const d = Math.abs(ia - ib); return d > 1 && d < f.length - 1; });
+    if (i < 0) return null;
+    const f = m.f[i], ia = f.indexOf(a), ib = f.indexOf(b), lo = Math.min(ia, ib), hi = Math.max(ia, ib);
+    m.f[i] = f.slice(lo, hi + 1);
+    m.f.push([...f.slice(hi), ...f.slice(0, lo + 1)]);
+    return m;
+  }
+  // close holes; only those that touch `onlyVerts` when given
+  function holes(m) {
+    const dir = new Set();
+    m.f.forEach((f) => eachEdge(f, (a, b) => dir.add(a + '>' + b)));
+    const next = new Map();
+    m.f.forEach((f) => eachEdge(f, (a, b) => { if (!dir.has(b + '>' + a)) next.set(b, a); }));
+    const loops = [], used = new Set();
+    next.forEach((_, s) => {
+      if (used.has(s)) return;
+      const loop = []; let c = s;
+      while (c != null && !used.has(c)) { used.add(c); loop.push(c); c = next.get(c); }
+      if (c === s && loop.length >= 3) loops.push(loop);
+    });
+    return loops;
+  }
+  function fill(m0, onlyVerts) {
+    const m = clone(m0);
+    const sel = onlyVerts && onlyVerts.length ? new Set(onlyVerts) : null;
+    const add = holes(m).filter((l) => !sel || l.some((i) => sel.has(i)));
+    add.forEach((l) => m.f.push(l));
+    return { m, filled: add.length };
+  }
+  function deleteFaces(m0, ids) {
+    const m = clone(m0), s = new Set(ids);
+    m.f = m.f.filter((_, i) => !s.has(i));
+    return compact(m);
+  }
+  function mirror(m0, axis, c) {
+    const m = clone(m0);
+    m.v.forEach((p) => { p[axis] = 2 * c - p[axis]; });
+    m.f.forEach((f) => f.reverse());
+    return m;
+  }
+  // partner of each corner across the plane coordinate[axis] = c (itself when on the plane, -1 if none)
+  function partners(m, axis, c, tol) {
+    const t = tol || 0.3, key = (p) => p.map((x) => Math.round(x / t)).join(',');
+    const map = new Map();
+    m.v.forEach((p, i) => { const k = key(p); if (!map.has(k)) map.set(k, []); map.get(k).push(i); });
+    return m.v.map((p, i) => {
+      if (Math.abs(p[axis] - c) < t) return i;
+      const q = p.slice(); q[axis] = 2 * c - p[axis];
+      const base = q.map((x) => Math.round(x / t));
+      let best = -1, bd = t * 1.5;
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+        (map.get([base[0] + dx, base[1] + dy, base[2] + dz].join(',')) || []).forEach((j) => { const d = len(sub(m.v[j], q)); if (d < bd) { bd = d; best = j; } });
+      }
+      return best;
+    });
+  }
+
+  // ---------- photos: silhouettes → hull ----------
+  // background reference colours from the picture border (most common colours)
+  function borderColours(data, w, h) {
+    const bins = new Map(), push = (x, y) => {
+      const o = (y * w + x) * 4, key = (data[o] >> 4) + ',' + (data[o + 1] >> 4) + ',' + (data[o + 2] >> 4);
+      const b = bins.get(key) || { n: 0, c: [0, 0, 0] }; b.n++; b.c[0] += data[o]; b.c[1] += data[o + 1]; b.c[2] += data[o + 2]; bins.set(key, b);
+    };
+    for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+    for (let y = 1; y < h - 1; y++) { push(0, y); push(w - 1, y); }
+    const total = 2 * w + 2 * (h - 2);
+    return [...bins.values()].sort((a, b) => b.n - a.n).filter((b, k) => k === 0 || b.n > total * 0.06).slice(0, 4).map((b) => b.c.map((x) => x / b.n));
+  }
+  // object = pixels unlike every background colour; biggest blob, holes filled
+  function maskFromImage(data, w, h, refs, tol) {
+    const m = new Uint8Array(w * h), t2 = tol * tol;
+    for (let i = 0; i < w * h; i++) {
+      const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+      let bg = data[i * 4 + 3] < 40;
+      for (const c of refs) { const dr = r - c[0], dg = g - c[1], db = b - c[2]; if (dr * dr * 0.8 + dg * dg + db * db * 0.7 < t2) { bg = true; break; } }
+      m[i] = bg ? 0 : 1;
+    }
+    return cleanMask(m, w, h);
+  }
+  function cleanMask(m, w, h) {
+    // open by one pixel: drop specks and thin threads
+    const er = new Uint8Array(w * h), out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      er[i] = m[i] && x > 0 && x < w - 1 && y > 0 && y < h - 1 && m[i - 1] && m[i + 1] && m[i - w] && m[i + w] ? 1 : 0;
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      out[i] = er[i] || (x > 0 && er[i - 1]) || (x < w - 1 && er[i + 1]) || (y > 0 && er[i - w]) || (y < h - 1 && er[i + w]) ? 1 : 0;
+    }
+    // largest connected blob
+    const lab = new Int32Array(w * h).fill(-1);
+    let best = -1, bestN = 0, id = 0;
+    const st = [];
+    for (let s = 0; s < w * h; s++) {
+      if (!out[s] || lab[s] >= 0) continue;
+      let n = 0; st.push(s); lab[s] = id;
+      while (st.length) {
+        const i = st.pop(); n++;
+        const x = i % w, y = (i / w) | 0;
+        if (x > 0 && out[i - 1] && lab[i - 1] < 0) { lab[i - 1] = id; st.push(i - 1); }
+        if (x < w - 1 && out[i + 1] && lab[i + 1] < 0) { lab[i + 1] = id; st.push(i + 1); }
+        if (y > 0 && out[i - w] && lab[i - w] < 0) { lab[i - w] = id; st.push(i - w); }
+        if (y < h - 1 && out[i + w] && lab[i + w] < 0) { lab[i + w] = id; st.push(i + w); }
+      }
+      if (n > bestN) { bestN = n; best = id; }
+      id++;
+    }
+    for (let i = 0; i < w * h; i++) out[i] = lab[i] === best ? 1 : 0;
+    // fill holes: background reachable from the border stays background
+    const reach = new Uint8Array(w * h);
+    for (let x = 0; x < w; x++) { st.push(x, (h - 1) * w + x); }
+    for (let y = 0; y < h; y++) { st.push(y * w, y * w + w - 1); }
+    while (st.length) {
+      const i = st.pop();
+      if (reach[i] || out[i]) continue;
+      reach[i] = 1;
+      const x = i % w, y = (i / w) | 0;
+      if (x > 0) st.push(i - 1); if (x < w - 1) st.push(i + 1); if (y > 0) st.push(i - w); if (y < h - 1) st.push(i + w);
+    }
+    for (let i = 0; i < w * h; i++) out[i] = reach[i] ? 0 : 1;
+    return out;
+  }
+  function polyMask(pts, w, h) {
+    const m = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const yc = y + 0.5, xs = [];
+      pts.forEach((a, k) => { const b = pts[(k + 1) % pts.length]; if ((a[1] > yc) !== (b[1] > yc)) xs.push(a[0] + ((yc - a[1]) * (b[0] - a[0])) / (b[1] - a[1])); });
+      xs.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < xs.length; k += 2) for (let x = Math.max(0, Math.ceil(xs[k] - 0.5)); x < Math.min(w, Math.floor(xs[k + 1] - 0.5) + 1); x++) m[y * w + x] = 1;
+    }
+    return m;
+  }
+  function crop(m, w, h) {
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (m[y * w + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return null;
+    const cw = x1 - x0 + 1, ch = y1 - y0 + 1, out = new Uint8Array(cw * ch);
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) out[y * cw + x] = m[(y + y0) * w + x + x0];
+    return { mask: out, w: cw, h: ch };
+  }
+  // squared distance transform along one line (Felzenszwalb)
+  function edt1(f, n) {
+    const d = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1);
+    let k = 0; v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+    for (let q = 1; q < n; q++) {
+      let s;
+      while (true) { const p = v[k]; s = (f[q] + q * q - (f[p] + p * p)) / (2 * q - 2 * p); if (s <= z[k] && k > 0) k--; else break; }
+      if (s <= z[k]) { v[0] = q; z[0] = -Infinity; z[1] = Infinity; k = 0; continue; }
+      k++; v[k] = q; z[k] = s; z[k + 1] = Infinity;
+    }
+    k = 0;
+    for (let q = 0; q < n; q++) { while (z[k + 1] < q) k++; const p = v[k]; d[q] = (q - p) * (q - p) + f[p]; }
+    return d;
+  }
+  function edt(seed, w, h) {
+    const INF = 1e12, g = new Float64Array(w * h);
+    for (let i = 0; i < w * h; i++) g[i] = seed[i] ? 0 : INF;
+    const col = new Float64Array(h), row = new Float64Array(w);
+    for (let x = 0; x < w; x++) { for (let y = 0; y < h; y++) col[y] = g[y * w + x]; const d = edt1(col, h); for (let y = 0; y < h; y++) g[y * w + x] = d[y]; }
+    for (let y = 0; y < h; y++) { for (let x = 0; x < w; x++) row[x] = g[y * w + x]; const d = edt1(row, w); for (let x = 0; x < w; x++) g[y * w + x] = d[x]; }
+    return g;
+  }
+  // signed distance in cells, negative inside
+  function sdf2(inside, w, h) {
+    const out = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) out[i] = inside[i] ? 0 : 1;
+    const dIn = edt(out, w, h), dOut = edt(inside, w, h), s = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) s[i] = inside[i] ? -(Math.sqrt(dIn[i]) - 0.5) : Math.sqrt(dOut[i]) - 0.5;
+    return s;
+  }
+
+  // views: { front, side, top } with { mask, w, h, flip } (cropped to the object); dims { W, H, D } mm; res = cells on the longest side
+  // front: x right, y up. side: z right (front of the object on the right; flip turns it). top: x right, z down (front at the bottom).
+  function hull(views, dims, res) {
+    const { W, H, D } = dims, L = Math.max(W, H, D), step = L / (res || 56);
+    const nx = Math.ceil(W / step) + 4, ny = Math.ceil(H / step) + 4, nz = Math.ceil(D / step) + 4;
+    const ox = -((nx - 1) * step) / 2, oy = -2 * step, oz = -((nz - 1) * step) / 2;
+    const X = (i) => ox + i * step, Y = (j) => oy + j * step, Z = (k) => oz + k * step;
+    // a view as a signed distance on its own plane grid (cells = step)
+    const plane = (vw, nu, nv, U, V) => {
+      const m = new Uint8Array(nu * nv);
+      for (let b = 0; b < nv; b++) for (let a = 0; a < nu; a++) {
+        let u = U(a), v = V(b);
+        if (vw.flip) u = 1 - u;
+        if (u < 0 || u >= 1 || v < 0 || v >= 1) continue;
+        m[b * nu + a] = vw.mask[Math.min(vw.h - 1, Math.floor(v * vw.h)) * vw.w + Math.min(vw.w - 1, Math.floor(u * vw.w))];
+      }
+      return sdf2(m, nu, nv);
+    };
+    const F = new Float32Array(nx * ny * nz).fill(-1e9);
+    const idx = (i, j, k) => (k * ny + j) * nx + i;
+    const apply = (s, nu, map) => { for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const [a, b] = map(i, j, k); const x = s[b * nu + a] * step; const q = idx(i, j, k); if (x > F[q]) F[q] = x; } };
+    if (views.front) apply(plane(views.front, nx, ny, (a) => (X(a) + W / 2) / W, (b) => (H - Y(b)) / H), nx, (i, j) => [i, j]);
+    if (views.side) apply(plane(views.side, nz, ny, (a) => (Z(a) + D / 2) / D, (b) => (H - Y(b)) / H), nz, (i, j, k) => [k, j]);
+    if (views.top) apply(plane(views.top, nx, nz, (a) => (X(a) + W / 2) / W, (b) => (Z(b) + D / 2) / D), nx, (i, j, k) => [i, k]);
+    // a view that is missing still bounds the box
+    for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const q = idx(i, j, k), box = Math.max(Math.abs(X(i)) - W / 2, Y(j) - H, -Y(j), Math.abs(Z(k)) - D / 2);
+      if (box > F[q]) F[q] = box;
+    }
+    return surfaceNets(F, nx, ny, nz, (i, j, k) => [X(i), Y(j), Z(k)]);
+  }
+  // naive surface nets: one corner per cell that the surface crosses, one quad per crossed grid edge
+  function surfaceNets(F, nx, ny, nz, pos) {
+    const idx = (i, j, k) => (k * ny + j) * nx + i;
+    const cell = new Int32Array(nx * ny * nz).fill(-1), v = [], f = [];
+    const corners = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]];
+    const edges = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+    for (let k = 0; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      const val = corners.map(([a, b, c]) => F[idx(i + a, j + b, k + c)]);
+      let neg = 0; val.forEach((x) => { if (x < 0) neg++; });
+      if (neg === 0 || neg === 8) continue;
+      const p = [0, 0, 0]; let n = 0;
+      edges.forEach(([a, b]) => {
+        if ((val[a] < 0) === (val[b] < 0)) return;
+        const t = val[a] / (val[a] - val[b]), A = pos(i + corners[a][0], j + corners[a][1], k + corners[a][2]), B = pos(i + corners[b][0], j + corners[b][1], k + corners[b][2]);
+        for (let q = 0; q < 3; q++) p[q] += A[q] + (B[q] - A[q]) * t;
+        n++;
+      });
+      cell[idx(i, j, k)] = v.length; v.push(p.map((x) => x / n));
+    }
+    const C = (i, j, k) => cell[idx(i, j, k)];
+    for (let k = 1; k < nz - 1; k++) for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+      const s = F[idx(i, j, k)] < 0;
+      // edge along x from (i,j,k)
+      if (i < nx - 1 && s !== (F[idx(i + 1, j, k)] < 0)) { const q = [C(i, j - 1, k - 1), C(i, j, k - 1), C(i, j, k), C(i, j - 1, k)]; f.push(s ? q : q.reverse()); }
+      if (j < ny - 1 && s !== (F[idx(i, j + 1, k)] < 0)) { const q = [C(i - 1, j, k - 1), C(i - 1, j, k), C(i, j, k), C(i, j, k - 1)]; f.push(s ? q : q.reverse()); }
+      if (k < nz - 1 && s !== (F[idx(i, j, k + 1)] < 0)) { const q = [C(i - 1, j - 1, k), C(i, j - 1, k), C(i, j, k), C(i - 1, j, k)]; f.push(s ? q : q.reverse()); }
+    }
+    const m = { v, f: f.filter((q) => q.every((x) => x >= 0)) };
+    return orient(cleanup(m));
+  }
+
+  // quadric edge collapse in batches (fast for big meshes); tris stay consistently oriented.
+  // Collapses down to `goal` corners, and further while the shape moves less than `tol` mm.
+  function fastReduce(verts0, tris0, goal, tol) {
+    const t2 = (tol || 0) ** 2;
+    const verts = verts0.map((p) => p.slice());
+    let tris = tris0.map((t) => t.slice());
+    let count = new Set(tris.flat()).size;
+    for (let pass = 0; pass < 400 && count > 4; pass++) {
+      const Q = verts.map(() => new Float64Array(10)), Wt = new Float64Array(verts.length);
+      tris.forEach((t) => {
+        const n0 = cross(sub(verts[t[1]], verts[t[0]]), sub(verts[t[2]], verts[t[0]])), ar = len(n0);
+        if (ar < 1e-12) return;
+        const [a, b, c] = n0.map((x) => x / ar), d = -dot([a, b, c], verts[t[0]]), w = ar;
+        const q = [a * a, a * b, a * c, a * d, b * b, b * c, b * d, c * c, c * d, d * d].map((x) => x * w);
+        t.forEach((i) => { for (let k = 0; k < 10; k++) Q[i][k] += q[k]; Wt[i] += w; });
+      });
+      const cost = (q, p) => { const [x, y, z] = p; return q[0] * x * x + 2 * q[1] * x * y + 2 * q[2] * x * z + 2 * q[3] * x + q[4] * y * y + 2 * q[5] * y * z + 2 * q[6] * y + q[7] * z * z + 2 * q[8] * z + q[9]; };
+      const vt = new Map(), nb = new Map();
+      tris.forEach((t, ti) => t.forEach((i, k) => {
+        if (!vt.has(i)) { vt.set(i, []); nb.set(i, new Set()); }
+        vt.get(i).push(ti); nb.get(i).add(t[(k + 1) % 3]); nb.get(i).add(t[(k + 2) % 3]);
+      }));
+      const seen = new Set(), cands = [];
+      tris.forEach((t) => eachEdge(t, (a, b) => {
+        const key = ek(a, b); if (seen.has(key)) return; seen.add(key);
+        const q = Q[a].map((x, k) => x + Q[b][k]), mid = verts[a].map((x, k) => (x + verts[b][k]) / 2);
+        let best = null;
+        [verts[a], verts[b], mid].forEach((p) => { const c = cost(q, p); if (!best || c < best.c) best = { c, p }; });
+        cands.push({ a, b, p: best.p, c: best.c, e: best.c / (Wt[a] + Wt[b] || 1) });
+      }));
+      cands.sort((x, y) => x.c - y.c);
+      const touched = new Set(), dead = new Set();
+      const budget = Math.max(1, Math.ceil(count * 0.12));
+      let done = 0;
+      for (const { a, b, p, e } of cands) {
+        if (done >= budget) break;
+        if (count <= goal && e > t2) break;
+        if (touched.has(a) || touched.has(b)) continue;
+        const shared = [...nb.get(a)].filter((x) => nb.get(b).has(x));
+        const edgeTris = vt.get(a).filter((i) => tris[i].includes(b));
+        if (shared.length !== edgeTris.length || edgeTris.length !== 2) continue;
+        let ok = true;
+        for (const i of new Set([...vt.get(a), ...vt.get(b)])) {
+          const t = tris[i];
+          if (t.includes(a) && t.includes(b)) continue;
+          const n0 = cross(sub(verts[t[1]], verts[t[0]]), sub(verts[t[2]], verts[t[0]]));
+          const np = t.map((x) => (x === a || x === b ? p : verts[x]));
+          const n1 = cross(sub(np[1], np[0]), sub(np[2], np[0]));
+          if (len(n1) < 1e-9 * (len(n0) + 1e-12) || dot(n0, n1) <= 0.3 * len(n0) * len(n1)) { ok = false; break; }
+        }
+        if (!ok) continue;
+        edgeTris.forEach((i) => dead.add(i));
+        vt.get(b).forEach((i) => { if (!dead.has(i)) tris[i] = tris[i].map((x) => (x === b ? a : x)); });
+        verts[a] = p.slice();
+        [a, b, ...nb.get(a), ...nb.get(b)].forEach((x) => touched.add(x));
+        count--; done++;
+      }
+      if (!done) break;
+      tris = tris.filter((_, i) => !dead.has(i));
+    }
+    return { verts, tris };
+  }
+
+  return {
+    clone, normal, areaNormal, centroid, bbox, edgeMap, stats, cleanup, compact, orient, fromTris, toRaw, triangulate,
+    box, column, sphere, ring, house, extrude2D, revolve, place, join, area2, selfCrossing,
+    extrude, inset, merge, dissolveVerts, dissolveEdge, splitEdges, connect, holes, fill, deleteFaces, mirror, partners,
+    borderColours, maskFromImage, cleanMask, polyMask, crop, sdf2, hull, surfaceNets, fastReduce, ek, hasDir,
+  };
+})();
+if (typeof module !== 'undefined') module.exports = Werk;
+
+</script>
+<script>
+// Faltwerk Modellgenerator: tabs (Neu, Fotos, Bearbeiten, Speichern), a 3D view with picking and dragging, and the edit tools.
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const fmt = (x) => (Math.abs(x) >= 10 ? x.toFixed(0) : x.toFixed(1)).replace('.', ',').replace(/^-0$/, '0');
+  const val = (el, def, lo, hi) => { let x = Number(String(el.value).replace(',', '.')); if (!Number.isFinite(x) || el.value === '') x = def; return Math.max(lo, Math.min(hi, x)); };
+  const store = {
+    get(k) { try { return localStorage.getItem('faltwerk-mg-' + k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem('faltwerk-mg-' + k, v); } catch { /* private mode */ } },
+  };
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const AX = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  function hexToRgb(h) {
+    const m = h.replace('#', '');
+    const v = m.length === 3 ? m.split('').map((c) => c + c).join('') : m;
+    return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
+  }
+
+  // ---------- state ----------
+  let model = null, name = 'Modell';
+  let undoStack = [], redoStack = [];
+  let sel = new Set(), selMode = 'v', hover = null;
+  let sym = 'off', symC = 0, xray = false, snap = true;
+  let tab = 'neu', shiftHeld = false, spaceHeld = false;
+  let tw = null; // live stretch/twist preview: { base, out, tri, sl, layers }
+  const snapshot = () => ({ m: Werk.clone(model), sel: [...sel], selMode, name });
+  function pushUndo(s) { undoStack.push(s || snapshot()); if (undoStack.length > 150) undoStack.shift(); redoStack = []; }
+  function restore(s) { model = Werk.clone(s.m); modeRaw(s.selMode); sel = new Set(s.sel); name = s.name; $('name').value = name; changed(); }
+  function undo() { if (modal) { cancelModal(); return; } if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); }
+  function redo() { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); }
+
+  // a new model from outside (shape, drawing, photos, Claude, OBJ); the old one stays in undo
+  function setModel(m, nm, opt) {
+    if (model) pushUndo();
+    model = m;
+    if (nm) { name = nm; $('name').value = nm; }
+    sel = new Set();
+    if (sym !== 'off') symC = Werk.bbox(model).mid[sym === 'x' ? 0 : 2];
+    if (!opt || opt.fit !== false) fit();
+    changed();
+  }
+  let saveTimer = 0;
+  function changed() {
+    idsDirty = true; edgesCache = null;
+    if (tw && model !== tw.out) twReset();
+    draw(); updateStats(); updateSelBox(); updateTools();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { if (model) store.set('model', JSON.stringify({ v: model.v.map((p) => p.map((x) => +x.toFixed(3))), f: model.f, name })); }, 400);
+  }
+
+  // ---------- tabs ----------
+  const tabs = [...document.querySelectorAll('[data-tab]')];
+  function setTab(t) {
+    tab = t; store.set('tab', t);
+    tabs.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+    document.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== t; });
+    canvas.classList.toggle('edit', t === 'bearbeiten');
+    if (t === 'speichern') prepareSave();
+    hover = null; setHelp(); draw();
+  }
+  tabs.forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
+
+  // ---------- view ----------
+  const canvas = $('view'), ctx = canvas.getContext('2d');
+  const view = { yaw: -0.6, pitch: 0.45, zoom: 2, panX: 0, panY: 0, c: [0, 0, 0] };
+  const csize = () => { const r = canvas.getBoundingClientRect(); return { W: r.width, H: r.height }; };
+  function basis() {
+    const cy = Math.cos(view.yaw), sy = Math.sin(view.yaw), cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
+    return { R: [cy, 0, sy], U: [sp * sy, cp, -sp * cy], F: [-cp * sy, sp, cp * cy] };
+  }
+  function project(p, B, W, H) {
+    const d = sub(p, view.c);
+    return [W / 2 + view.panX + dot(B.R, d) * view.zoom, H / 2 + view.panY - dot(B.U, d) * view.zoom, dot(B.F, d)];
+  }
+  function fit() {
+    if (!model || !model.v.length) return;
+    const b = Werk.bbox(model), { W, H } = csize();
+    view.c = b.mid;
+    view.zoom = (Math.min(W || 400, H || 300) * 0.42) / Math.max(1, Math.hypot(...b.size) / 2);
+    view.panX = view.panY = 0;
+  }
+  function setView(k) {
+    if (k === 'fit') { fit(); draw(); return; }
+    const v = { front: [0, 0], side: [-Math.PI / 2, 0], top: [0, Math.PI / 2], '3d': [-0.6, 0.45] }[k];
+    view.yaw = v[0]; view.pitch = v[1]; idsDirty = true; draw();
+  }
+  document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+  function zoomAt(x, y, f) {
+    const { W, H } = csize();
+    f = Math.max(0.2, Math.min(5, f));
+    const z = Math.max(0.02, Math.min(200, view.zoom * f)); f = z / view.zoom;
+    view.panX = x - W / 2 - (x - W / 2 - view.panX) * f;
+    view.panY = y - H / 2 - (y - H / 2 - view.panY) * f;
+    view.zoom = z; idsDirty = true; draw();
+  }
+
+  // ---------- drawing ----------
+  let P = [], B = basis(), order = [], idsDirty = true, edgesCache = null;
+  const idc = document.createElement('canvas'), idx = idc.getContext('2d', { willReadFrequently: true });
+  let idData = null, idW = 0, idH = 0;
+  function edges() {
+    if (!edgesCache) edgesCache = [...Werk.edgeMap(model).values()];
+    return edgesCache;
+  }
+  function selVerts() {
+    const s = new Set();
+    if (!model) return s;
+    if (selMode === 'v') sel.forEach((i) => s.add(i));
+    else if (selMode === 'f') sel.forEach((i) => model.f[i] && model.f[i].forEach((x) => s.add(x)));
+    else sel.forEach((k) => k.split(',').forEach((x) => s.add(Number(x))));
+    return s;
+  }
+  function polyPath(c, f) { c.beginPath(); f.forEach((i, k) => (k ? c.lineTo(P[i][0], P[i][1]) : c.moveTo(P[i][0], P[i][1]))); c.closePath(); }
+  function draw() {
+    const r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(r.width * dpr)); canvas.height = Math.max(1, Math.round(r.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = r.width, H = r.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = css('--matline'); ctx.lineWidth = 1;
+    for (let x = 0, i = 0; x <= W; x += 12, i++) { ctx.globalAlpha = i % 5 ? 0.5 : 1; ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke(); }
+    for (let y = 0, i = 0; y <= H; y += 12, i++) { ctx.globalAlpha = i % 5 ? 0.5 : 1; ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    if (!model || !model.v.length) return;
+    B = basis();
+    P = model.v.map((p) => project(p, B, W, H));
+    order = model.f.map((f, i) => ({ i, z: f.reduce((a, x) => a + P[x][2], 0) / f.length })).sort((a, b) => a.z - b.z).map((o) => o.i);
+    const editing = tab === 'bearbeiten';
+    const base = hexToRgb(css('--face')), selc = hexToRgb(css('--sel')), ink = css('--ink');
+    const L = [0, 0, 0]; for (let k = 0; k < 3; k++) L[k] = B.R[k] * 0.35 + B.U[k] * 0.8 + B.F[k] * 0.5;
+    const ll = Math.hypot(...L);
+    const fsel = selMode === 'f' ? sel : new Set();
+    const hov = editing && hover && hover.mode === 'f' ? hover.id : -1;
+    ctx.lineJoin = 'round';
+    order.forEach((i) => {
+      const f = model.f[i], n = Werk.normal(model, f);
+      const lam = Math.abs(dot(n, L) / ll), k = 0.45 + 0.55 * lam, back = dot(n, B.F) < 0;
+      const col = fsel.has(i) ? selc : base;
+      const kk = back ? k * 0.6 : k;
+      ctx.fillStyle = `rgb(${col.map((x) => Math.round(Math.min(255, x * kk + (1 - kk) * 40))).join(',')})`;
+      polyPath(ctx, f);
+      ctx.globalAlpha = xray && editing ? 0.3 : 1; ctx.fill();
+      if (i === hov) { ctx.globalAlpha = 0.25; ctx.fillStyle = css('--sel'); ctx.fill(); }
+      ctx.strokeStyle = ink; ctx.globalAlpha = editing ? 0.55 : 0.35; ctx.lineWidth = editing ? 1 : 0.8; ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+    if (editing) buildIds(W, H);
+    // open edges in red
+    ctx.strokeStyle = css('--bad'); ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    edges().forEach((e) => { if (e.faces.length !== 1) return; ctx.beginPath(); ctx.moveTo(P[e.a][0], P[e.a][1]); ctx.lineTo(P[e.b][0], P[e.b][1]); ctx.stroke(); });
+    if (editing) {
+      ctx.strokeStyle = css('--sel'); ctx.lineCap = 'round';
+      if (selMode === 'e') {
+        sel.forEach((key) => { const [a, b] = key.split(',').map(Number); if (!P[a] || !P[b]) return; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(P[a][0], P[a][1]); ctx.lineTo(P[b][0], P[b][1]); ctx.stroke(); });
+        if (hover && hover.mode === 'e') { const [a, b] = hover.id.split(',').map(Number); ctx.globalAlpha = 0.5; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(P[a][0], P[a][1]); ctx.lineTo(P[b][0], P[b][1]); ctx.stroke(); ctx.globalAlpha = 1; }
+      }
+      if (selMode === 'v') {
+        model.v.forEach((_, i) => {
+          const on = sel.has(i);
+          if (!on && !vertVisible(i)) return;
+          ctx.beginPath(); ctx.arc(P[i][0], P[i][1], on ? 5 : hover && hover.mode === 'v' && hover.id === i ? 5 : 3, 0, 2 * Math.PI);
+          ctx.fillStyle = on ? css('--sel') : ink; ctx.globalAlpha = on ? 1 : 0.8; ctx.fill(); ctx.globalAlpha = 1;
+          if (on) { ctx.lineWidth = 1.5; ctx.strokeStyle = css('--panel'); ctx.stroke(); }
+        });
+      }
+      if (sym !== 'off') drawSymPlane(W, H);
+      if (modal && modal.axis != null) {
+        const c = project(modal.center, B, W, H), a = modal.axisVec || AX[modal.axis];
+        ctx.strokeStyle = ['#d1495b', '#3a9d5d', '#3b7dd8'][modal.axis] || css('--sel'); ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+        ctx.beginPath(); ctx.moveTo(c[0] - dot(B.R, a) * 4000, c[1] + dot(B.U, a) * 4000); ctx.lineTo(c[0] + dot(B.R, a) * 4000, c[1] - dot(B.U, a) * 4000); ctx.stroke(); ctx.setLineDash([]);
+      }
+      if (ptr && ptr.kind === 'box') {
+        ctx.strokeStyle = css('--sel'); ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+        ctx.strokeRect(Math.min(ptr.x0, ptr.x1) + 0.5, Math.min(ptr.y0, ptr.y1) + 0.5, Math.abs(ptr.x1 - ptr.x0), Math.abs(ptr.y1 - ptr.y0)); ctx.setLineDash([]);
+      }
+    }
+    // axes in the corner
+    const o = [30, H - 30];
+    [['X', '#d1495b'], ['Y', '#3a9d5d'], ['Z', '#3b7dd8']].forEach(([t, c], k) => {
+      const ex = o[0] + B.R[k] * 20, ey = o[1] - B.U[k] * 20;
+      ctx.strokeStyle = c; ctx.fillStyle = c; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.font = '600 11px ' + css('--font-data'); ctx.fillText(t, ex + (ex - o[0]) * 0.25 - 3, ey + (ey - o[1]) * 0.25 + 4);
+    });
+  }
+  function drawSymPlane(W, H) {
+    const ax = sym === 'x' ? 0 : 2, b = Werk.bbox(model), pad = 0.15;
+    const u = ax === 0 ? 2 : 0, lo = b.lo.slice(), hi = b.hi.slice();
+    const du = (hi[u] - lo[u]) * pad + 2, dy = (hi[1] - lo[1]) * pad + 2;
+    const c = (s, t) => { const p = [0, 0, 0]; p[ax] = symC; p[u] = s; p[1] = t; return project(p, B, W, H); };
+    const pts = [c(lo[u] - du, lo[1] - dy), c(hi[u] + du, lo[1] - dy), c(hi[u] + du, hi[1] + dy), c(lo[u] - du, hi[1] + dy)];
+    ctx.strokeStyle = css('--sel'); ctx.lineWidth = 1; ctx.setLineDash([5, 5]); ctx.globalAlpha = 0.8;
+    ctx.beginPath(); pts.forEach((p, k) => (k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+  }
+  // every face in its own colour, painted back to front: the colour under a pixel tells which face is in front
+  function buildIds(W, H) {
+    if (!idsDirty && idW === Math.round(W) && idH === Math.round(H)) return;
+    idW = idc.width = Math.max(1, Math.round(W)); idH = idc.height = Math.max(1, Math.round(H));
+    idx.clearRect(0, 0, idW, idH);
+    order.forEach((i) => { const id = i + 1; idx.fillStyle = `rgb(${id & 255},${(id >> 8) & 255},${(id >> 16) & 255})`; polyPath(idx, model.f[i]); idx.fill(); });
+    idData = idx.getImageData(0, 0, idW, idH).data;
+    idsDirty = false;
+  }
+  function idAt(x, y) {
+    x = Math.round(x); y = Math.round(y);
+    if (!idData || x < 0 || y < 0 || x >= idW || y >= idH) return -1;
+    const o = (y * idW + x) * 4;
+    if (idData[o + 3] < 250) return -1;
+    const id = idData[o] + idData[o + 1] * 256 + idData[o + 2] * 65536 - 1;
+    return id < model.f.length ? id : -1;
+  }
+  function inPoly(x, y, f) {
+    let c = false;
+    f.forEach((i, k) => { const a = P[i], b = P[f[(k + 1) % f.length]]; if ((a[1] > y) !== (b[1] > y) && x < a[0] + ((y - a[1]) * (b[0] - a[0])) / (b[1] - a[1])) c = !c; });
+    return c;
+  }
+  const RING = [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2], [3, 3], [-3, 3], [3, -3], [-3, -3], [4, 0], [-4, 0], [0, 4], [0, -4]];
+  function seen(x, y, test) { return RING.some(([dx, dy]) => { const id = idAt(x + dx, y + dy); return id >= 0 && test(model.f[id]); }); }
+  function vertVisible(i) { return xray || seen(P[i][0], P[i][1], (f) => f.includes(i)); }
+  function edgeVisible(e) { return xray || seen((P[e.a][0] + P[e.b][0]) / 2, (P[e.a][1] + P[e.b][1]) / 2, (f) => f.includes(e.a) && f.includes(e.b)); }
+  function pick(x, y) {
+    if (!model) return null;
+    if (selMode === 'f') {
+      for (const [dx, dy] of RING.slice(0, 5)) { const id = idAt(x + dx, y + dy); if (id >= 0 && inPoly(x, y, model.f[id])) return id; }
+      if (xray) { for (let k = order.length - 1; k >= 0; k--) if (inPoly(x, y, model.f[order[k]])) return order[k]; }
+      return null;
+    }
+    if (selMode === 'v') {
+      const c = model.v.map((_, i) => ({ i, d: Math.hypot(P[i][0] - x, P[i][1] - y) })).filter((o) => o.d < 14).sort((a, b) => a.d - b.d);
+      const hit = c.find((o) => vertVisible(o.i));
+      return hit ? hit.i : null;
+    }
+    const segd = (e) => {
+      const a = P[e.a], b = P[e.b], vx = b[0] - a[0], vy = b[1] - a[1], l2 = vx * vx + vy * vy || 1;
+      const t = Math.max(0, Math.min(1, ((x - a[0]) * vx + (y - a[1]) * vy) / l2));
+      return Math.hypot(a[0] + vx * t - x, a[1] + vy * t - y);
+    };
+    const c = edges().map((e) => ({ e, d: segd(e) })).filter((o) => o.d < 9).sort((a, b) => a.d - b.d);
+    const hit = c.find((o) => edgeVisible(o.e));
+    return hit ? hit.e.a + ',' + hit.e.b : null;
+  }
+  function boxSelect(x0, y0, x1, y1, addTo) {
+    const lx = Math.min(x0, x1), hx = Math.max(x0, x1), ly = Math.min(y0, y1), hy = Math.max(y0, y1);
+    const inside = (i) => P[i][0] >= lx && P[i][0] <= hx && P[i][1] >= ly && P[i][1] <= hy;
+    if (!addTo) sel = new Set();
+    if (selMode === 'v') {
+      // corners straight behind a visible one (front, side or top view) come along
+      const vis = model.v.map((_, i) => inside(i) && vertVisible(i));
+      model.v.forEach((_, i) => { if (inside(i) && (vis[i] || vis.some((on, j) => on && Math.hypot(P[j][0] - P[i][0], P[j][1] - P[i][1]) < 1.5))) sel.add(i); });
+    }
+    else if (selMode === 'e') edges().forEach((e) => { if (inside(e.a) && inside(e.b) && edgeVisible(e)) sel.add(e.a + ',' + e.b); });
+    else model.f.forEach((f, i) => { if (f.every(inside) && (xray || dot(Werk.normal(model, f), B.F) > 0)) sel.add(i); });
+  }
+
+  // ---------- pointer ----------
+  let ptr = null, mouse = { x: 0, y: 0 };
+  const local = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.focus({ preventScroll: true });
+    const { x, y } = local(e); mouse = { x, y };
+    if (modal) { if (e.button === 2) cancelModal(); else confirmModal(); e.preventDefault(); return; }
+    canvas.setPointerCapture(e.pointerId);
+    if (e.button === 1 || e.button === 2 || spaceHeld) { ptr = { kind: 'pan', x0: x, y0: y, px: view.panX, py: view.panY }; return; }
+    if (tab !== 'bearbeiten' || !model) { ptr = { kind: 'orbit', x0: x, y0: y, yaw: view.yaw, pitch: view.pitch }; canvas.style.cursor = 'grabbing'; return; }
+    const hit = pick(x, y);
+    if (hit != null) {
+      if (e.shiftKey || e.metaKey) { if (sel.has(hit)) sel.delete(hit); else sel.add(hit); ptr = { kind: 'none' }; selChanged(); return; }
+      if (!sel.has(hit)) { sel = new Set([hit]); selChanged(); }
+      ptr = { kind: 'pending', x0: x, y0: y, hit };
+      return;
+    }
+    if (e.shiftKey) ptr = { kind: 'box', x0: x, y0: y, x1: x, y1: y };
+    else ptr = { kind: 'orbit', x0: x, y0: y, yaw: view.yaw, pitch: view.pitch, click: true };
+  });
+  let hoverRaf = 0;
+  canvas.addEventListener('pointermove', (e) => {
+    const { x, y } = local(e); mouse = { x, y }; shiftHeld = e.shiftKey;
+    if (modal) { updateModal(); return; }
+    if (!ptr) {
+      if (tab === 'bearbeiten' && model && !hoverRaf) hoverRaf = requestAnimationFrame(() => {
+        hoverRaf = 0;
+        const h = pick(mouse.x, mouse.y), nh = h == null ? null : { mode: selMode, id: h };
+        if ((nh && nh.id) !== (hover && hover.id)) { hover = nh; draw(); }
+      });
+      return;
+    }
+    const dx = x - ptr.x0, dy = y - ptr.y0;
+    if (ptr.kind === 'orbit') {
+      if (Math.hypot(dx, dy) > 3) ptr.click = false;
+      view.yaw = ptr.yaw + dx * 0.01; view.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, ptr.pitch + dy * 0.01)); idsDirty = true; draw();
+    } else if (ptr.kind === 'pan') { view.panX = ptr.px + dx; view.panY = ptr.py + dy; idsDirty = true; draw(); }
+    else if (ptr.kind === 'box') { ptr.x1 = x; ptr.y1 = y; draw(); }
+    else if (ptr.kind === 'pending' && Math.hypot(dx, dy) > 4) { const p0 = ptr; ptr = { kind: 'drag' }; startModal('move', { from: p0, drag: true }); }
+  });
+  const endPtr = (e) => {
+    if (!ptr) return;
+    const p = ptr; ptr = null; canvas.style.cursor = '';
+    if (p.kind === 'orbit' && p.click && tab === 'bearbeiten' && sel.size) { sel = new Set(); selChanged(); }
+    else if (p.kind === 'box') { boxSelect(p.x0, p.y0, p.x1, p.y1, true); selChanged(); }
+    else if (p.kind === 'drag' && modal) confirmModal();
+    else if (p.kind === 'pending' && sel.size > 1) { sel = new Set([p.hit]); selChanged(); }
+    if (e && e.pointerId != null && canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+  };
+  canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
+  canvas.addEventListener('pointerleave', () => { if (hover) { hover = null; draw(); } });
+  // trackpad: two fingers move, pinch zooms; a mouse wheel zooms
+  function wheel(e, cv, zoomFn, panFn) {
+    e.preventDefault();
+    const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    const mouseWheel = e.deltaMode === 1 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
+    if (e.ctrlKey) zoomFn(x, y, Math.exp(-e.deltaY * 0.01));
+    else if (mouseWheel) zoomFn(x, y, Math.exp(-e.deltaY * 0.0015));
+    else panFn(-e.deltaX, -e.deltaY);
+  }
+  canvas.addEventListener('wheel', (e) => wheel(e, canvas, zoomAt, (dx, dy) => { view.panX += dx; view.panY += dy; idsDirty = true; draw(); }), { passive: false });
+  let g0 = 1;
+  const viewer = $('viewer');
+  viewer.addEventListener('gesturestart', (e) => { e.preventDefault(); g0 = 1; });
+  viewer.addEventListener('gesturechange', (e) => {
+    e.preventDefault();
+    const r = canvas.getBoundingClientRect(), f = e.scale / g0; g0 = e.scale;
+    if (dm) dZoom(e.clientX - r.left, e.clientY - r.top, f); else zoomAt(e.clientX - r.left, e.clientY - r.top, f);
+  });
+  new ResizeObserver(() => { idsDirty = true; draw(); if (dm) dDraw(); }).observe(canvas);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // ---------- selection ----------
+  function setMode(m, quiet) {
+    if (m !== selMode) {
+      const vs = selVerts();
+      selMode = m;
+      // carry the selection over where it makes sense
+      if (m === 'v') sel = vs;
+      else if (m === 'f') sel = new Set(model ? model.f.map((f, i) => (f.every((x) => vs.has(x)) && vs.size ? i : -1)).filter((i) => i >= 0) : []);
+      else sel = new Set(model ? edges().filter((e) => vs.has(e.a) && vs.has(e.b)).map((e) => e.a + ',' + e.b) : []);
+    }
+    document.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === selMode)));
+    store.set('mode', selMode);
+    hover = null;
+    if (!quiet) selChanged();
+  }
+  document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+  // switch the mode without carrying the selection over (it is replaced right after)
+  function modeRaw(m) { selMode = m; document.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m))); hover = null; }
+  function selChanged() { draw(); updateSelBox(); updateTools(); }
+  // symmetry: the partner array and the mirrored copy of a selection
+  const symAxis = () => (sym === 'x' ? 0 : 2);
+  const partners = () => (sym === 'off' || !model ? null : Werk.partners(model, symAxis(), symC, Math.max(0.05, Math.hypot(...Werk.bbox(model).size) * 0.002)));
+  function mirrored(list) {
+    const pt = partners();
+    if (!pt) return list;
+    const out = new Set(list);
+    if (selMode === 'v') list.forEach((i) => { if (pt[i] >= 0) out.add(pt[i]); });
+    else if (selMode === 'e') list.forEach((k) => { const [a, b] = k.split(',').map(Number); if (pt[a] >= 0 && pt[b] >= 0) out.add(Werk.ek(pt[a], pt[b])); });
+    else {
+      const byKey = new Map(model.f.map((f, i) => [f.slice().sort((a, b) => a - b).join(','), i]));
+      list.forEach((i) => { const m = model.f[i].map((x) => pt[x]); if (m.every((x) => x >= 0)) { const j = byKey.get(m.sort((a, b) => a - b).join(',')); if (j != null) out.add(j); } });
+    }
+    return [...out];
+  }
+
+  // ---------- modal transforms (G, S, R, extrude, inset) ----------
+  let modal = null;
+  const NAMES = { move: 'Verschieben', scale: 'Größe', rotate: 'Drehen', extrude: 'Ausstülpen', inset: 'Einrücken' };
+  function startModal(kind, opt) {
+    opt = opt || {};
+    if (!model) return;
+    const S = opt.slide ? new Set(opt.slide.map((s) => s.i)) : selVerts();
+    if (!S.size) { eStatus('Erst etwas auswählen: Klick aufs Modell.', 'warn'); return; }
+    const from = opt.from || { x0: mouse.x, y0: mouse.y };
+    modal = {
+      kind, S, base: model.v.map((p) => p.slice()), center: Werk.centroid(model, [...S]), pt: opt.slide ? null : partners(), axis: null, typed: '',
+      pre: opt.pre || snapshot(), x0: from.x0, y0: from.y0, drag: !!opt.drag, slide: opt.slide || null, moved: false,
+    };
+    if (kind === 'extrude') { const d = [0, 0, 0]; opt.slide.forEach((s) => { for (let k = 0; k < 3; k++) d[k] += s.dir[k]; }); modal.axisVec = unitv(d); }
+    updateModal();
+  }
+  const unitv = (a) => { const l = Math.hypot(...a) || 1; return a.map((x) => x / l); };
+  function rotateAround(p, c, axis, ang) {
+    const v = sub(p, c), k = unitv(axis), cs = Math.cos(ang), sn = Math.sin(ang);
+    const kxv = [k[1] * v[2] - k[2] * v[1], k[2] * v[0] - k[0] * v[2], k[0] * v[1] - k[1] * v[0]];
+    return add(c, add(add(mul(v, cs), mul(kxv, sn)), mul(k, dot(k, v) * (1 - cs))));
+  }
+  function updateModal() {
+    const m = modal, { W, H } = csize(), Z = view.zoom, free = shiftHeld, useSnap = snap && !free;
+    const dx = mouse.x - m.x0, dy = mouse.y - m.y0;
+    const typed = m.typed !== '' && m.typed !== '-' && m.typed !== ',' ? Number(m.typed.replace(',', '.')) : null;
+    B = basis();
+    model.v = m.base.map((p) => p.slice());
+    const along = (a) => {
+      const sx = dot(B.R, a) * Z, sy = -dot(B.U, a) * Z, l2 = sx * sx + sy * sy;
+      return l2 < (0.15 * Z) ** 2 ? -dy / Z : (dx * sx + dy * sy) / l2;
+    };
+    let info = '';
+    const c2 = project(m.center, B, W, H);
+    if (m.kind === 'move') {
+      let d;
+      if (m.axis != null) {
+        let a = typed != null ? typed : along(AX[m.axis]);
+        if (useSnap && typed == null) a = Math.round(a);
+        d = mul(AX[m.axis], a); info = `${'XYZ'[m.axis]} ${fmt(a)} mm`;
+      } else {
+        d = add(mul(B.R, dx / Z), mul(B.U, -dy / Z));
+        if (useSnap) d = d.map((x) => Math.round(x));
+        info = d.map(fmt).join(' · ') + ' mm';
+      }
+      m.S.forEach((i) => { model.v[i] = add(m.base[i], d); });
+    } else if (m.kind === 'scale') {
+      const r0 = Math.max(12, Math.hypot(m.x0 - c2[0], m.y0 - c2[1])), r = Math.hypot(mouse.x - c2[0], mouse.y - c2[1]);
+      let f = typed != null ? typed / 100 : r / r0;
+      if (useSnap && typed == null) f = Math.round(f * 20) / 20;
+      f = Math.max(0, f);
+      m.S.forEach((i) => { const p = m.base[i]; model.v[i] = p.map((x, k) => (m.axis == null || m.axis === k ? m.center[k] + (x - m.center[k]) * f : x)); });
+      info = `${Math.round(f * 100)} %` + (m.axis != null ? ' in ' + 'XYZ'[m.axis] : '');
+    } else if (m.kind === 'rotate') {
+      let ang = typed != null ? (typed * Math.PI) / 180 : Math.atan2(-(mouse.y - c2[1]), mouse.x - c2[0]) - Math.atan2(-(m.y0 - c2[1]), m.x0 - c2[0]);
+      if (useSnap && typed == null) ang = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12);
+      let axis = B.F;
+      if (m.axis != null) { axis = AX[m.axis]; if (dot(axis, B.F) < 0) axis = mul(axis, -1); }
+      m.S.forEach((i) => { model.v[i] = rotateAround(m.base[i], m.center, axis, ang); });
+      let deg = Math.round((ang * 180) / Math.PI); if (deg > 180) deg -= 360; if (deg < -180) deg += 360;
+      info = `${deg}°` + (m.axis != null ? ' um ' + 'XYZ'[m.axis] : '');
+    } else if (m.kind === 'extrude') {
+      let a = typed != null ? typed : along(m.axisVec);
+      if (useSnap && typed == null) a = Math.round(a);
+      m.slide.forEach((s) => { model.v[s.i] = add(s.base, mul(s.dir, a)); });
+      info = `${fmt(a)} mm`;
+    } else if (m.kind === 'inset') {
+      let a = typed != null ? typed : Math.max(0, dx / Z);
+      if (useSnap && typed == null) a = Math.round(a * 2) / 2;
+      m.slide.forEach((s) => { model.v[s.i] = add(s.base, mul(s.dir, a)); });
+      info = `Rand ${fmt(a)} mm`;
+    }
+    if (m.pt) {
+      const ax = symAxis();
+      m.S.forEach((i) => {
+        const p = m.pt[i];
+        if (p === i) model.v[i][ax] = symC;
+        else if (p >= 0 && !m.S.has(p)) { const q = model.v[i].slice(); q[ax] = 2 * symC - q[ax]; model.v[p] = q; }
+      });
+    }
+    m.info = info; m.moved = m.moved || Math.hypot(dx, dy) > 2 || typed != null;
+    idsDirty = true; setHelp(); draw();
+  }
+  function confirmModal() {
+    const m = modal; if (!m) return;
+    modal = null;
+    if (m.moved || m.slide) pushUndo(m.pre);
+    else { model = m.pre.m; }
+    changed(); setHelp();
+  }
+  function cancelModal() {
+    const m = modal; if (!m) return;
+    modal = null;
+    model = Werk.clone(m.pre.m); sel = new Set(m.pre.sel);
+    changed(); setHelp();
+  }
+
+  // ---------- tools ----------
+  const eStatus = (t, cls) => { $('eStatus').textContent = t || ''; $('eStatus').className = 'status' + (cls ? ' ' + cls : ''); };
+  function findVert(p) {
+    let best = -1, bd = Infinity;
+    model.v.forEach((q, i) => { const d = Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]); if (d < bd) { bd = d; best = i; } });
+    return bd < 1e-6 ? best : -1;
+  }
+  function apply(m2, newSel, newMode) {
+    pushUndo();
+    model = m2;
+    if (newMode) modeRaw(newMode);
+    sel = new Set(newSel || []);
+    changed();
+  }
+  const tools = {
+    move() { startModal('move'); },
+    scale() { startModal('scale'); },
+    rotate() { startModal('rotate'); },
+    extrude() {
+      if (selMode !== 'f' || !sel.size) { eStatus('Ausstülpen: erst Flächen wählen (Taste 3, dann Klick).', 'warn'); return; }
+      const pre = snapshot(), ids = mirrored([...sel]), r = Werk.extrude(model, ids);
+      model = r.m; sel = new Set(ids); idsDirty = true; edgesCache = null;
+      startModal('extrude', { pre, slide: r.slide });
+    },
+    inset() {
+      if (selMode !== 'f' || !sel.size) { eStatus('Einrücken: erst Flächen wählen (Taste 3).', 'warn'); return; }
+      const pre = snapshot(), ids = mirrored([...sel]), r = Werk.inset(model, ids);
+      model = r.m; sel = new Set(ids); idsDirty = true; edgesCache = null;
+      startModal('inset', { pre, slide: r.slide });
+      eStatus('Maus nach rechts = breiterer Rand. Danach E und nach innen ziehen gibt eine Mulde.');
+    },
+    merge() {
+      const vs = [...selVerts()];
+      if (vs.length < 2) { eStatus('Verschmelzen: mindestens zwei Punkte wählen.', 'warn'); return; }
+      const pt = partners(), set = new Set(vs);
+      const twin = pt && vs.every((i) => pt[i] >= 0 && pt[i] !== i && !set.has(pt[i])) ? vs.map((i) => model.v[pt[i]].slice()) : null;
+      let r = Werk.merge(model, vs);
+      let m2 = r.m, at = [r.at];
+      if (twin) { const ids = twin.map((p) => { const i = Werk.clone(m2).v.findIndex((q) => q[0] === p[0] && q[1] === p[1] && q[2] === p[2]); return i; }).filter((i) => i >= 0); if (ids.length > 1) { const r2 = Werk.merge(m2, ids); m2 = r2.m; at.push(r2.at); } }
+      Werk.orient(m2);
+      apply(m2, [], 'v');
+      sel = new Set(at.map((p) => findVert(p)).filter((i) => i >= 0)); selChanged();
+    },
+    split() {
+      if (selMode !== 'e' || !sel.size) { eStatus('Kante teilen: erst Kanten wählen (Taste 2).', 'warn'); return; }
+      const r = Werk.splitEdges(model, mirrored([...sel]).map((k) => k.split(',').map(Number)));
+      apply(r.m, r.made, 'v');
+      eStatus('Neue Punkte sind gewählt. Mit G oder Ziehen verschieben.');
+    },
+    connect() {
+      const vs = [...selVerts()];
+      const pairs = [];
+      if (vs.length === 2) pairs.push(vs);
+      else if (vs.length === 4 && partners()) { const pt = partners(); const a = vs[0], b = vs.find((x) => x !== a && x !== pt[a]); if (b != null) { pairs.push([a, b]); pairs.push([pt[a], pt[b]]); } }
+      if (!pairs.length) { eStatus('Verbinden: zwei Punkte derselben Fläche wählen.', 'warn'); return; }
+      let m2 = model, ok = 0;
+      pairs.forEach(([a, b]) => { const r = Werk.connect(m2, a, b); if (r) { m2 = r; ok++; } });
+      if (!ok) { eStatus('Die zwei Punkte liegen nicht auf einer gemeinsamen Fläche.', 'warn'); return; }
+      apply(m2, [], 'e'); sel = new Set(pairs.map(([a, b]) => Werk.ek(a, b))); selChanged();
+      eStatus('Die Fläche ist geteilt. Die neue Kante wird eine Falzlinie.');
+    },
+    fill() {
+      const r = Werk.fill(model, [...selVerts()]);
+      if (!r.filled) { eStatus('Kein Loch gefunden (offene Kanten sind rot).'); return; }
+      Werk.orient(r.m); apply(r.m, [], selMode);
+      eStatus(r.filled === 1 ? 'Ein Loch geschlossen.' : `${r.filled} Löcher geschlossen.`);
+    },
+    del() {
+      if (!sel.size) { eStatus('Löschen: erst etwas auswählen.', 'warn'); return; }
+      if (selMode === 'v') { apply(Werk.dissolveVerts(model, mirrored([...sel])), []); eStatus('Punkt weg, die Nachbarn rücken zusammen.'); }
+      else if (selMode === 'f') { apply(Werk.deleteFaces(model, mirrored([...sel])), []); eStatus('Fläche weg, das Loch ist rot. F schließt es wieder.'); }
+      else {
+        let m2 = model, n = 0;
+        mirrored([...sel]).forEach((k) => { const [a, b] = k.split(',').map(Number); const r = Werk.dissolveEdge(m2, a, b); if (r) { m2 = r; n++; } });
+        if (!n) { eStatus('Diese Kante lässt sich nicht entfernen.', 'warn'); return; }
+        apply(m2, []); eStatus('Falz weg: zwei Flächen sind jetzt eine.');
+      }
+    },
+  };
+  document.querySelectorAll('[data-tool]').forEach((b) => b.addEventListener('click', () => { if (modal) confirmModal(); eStatus(''); if (b.dataset.tool in tools) { if (['move', 'scale', 'rotate', 'extrude', 'inset'].includes(b.dataset.tool)) { const r = canvas.getBoundingClientRect(); mouse = { x: r.width / 2 + 60, y: r.height / 2 }; } tools[b.dataset.tool](); } }));
+  function updateTools() {
+    const n = sel.size, vs = selVerts().size;
+    const en = { move: vs > 0, scale: vs > 0, rotate: vs > 0, extrude: selMode === 'f' && n > 0, inset: selMode === 'f' && n > 0, merge: vs > 1, split: selMode === 'e' && n > 0, connect: vs === 2 || vs === 4, fill: !!model, del: n > 0 };
+    document.querySelectorAll('[data-tool]').forEach((b) => { b.disabled = !en[b.dataset.tool]; });
+    $('undo').disabled = !undoStack.length; $('redo').disabled = !redoStack.length;
+  }
+  $('undo').addEventListener('click', undo);
+  $('redo').addEventListener('click', redo);
+
+  // selection size and centre as numbers
+  function updateSelBox() {
+    if (!model || !model.v.length) return;
+    const vs = [...selVerts()], b = Werk.bbox(model, vs.length ? vs : null);
+    $('selTitle').textContent = vs.length ? `Auswahl: ${sel.size} ${{ v: sel.size === 1 ? 'Punkt' : 'Punkte', e: sel.size === 1 ? 'Kante' : 'Kanten', f: sel.size === 1 ? 'Fläche' : 'Flächen' }[selMode]}` : 'Ganzes Modell';
+    ['x', 'y', 'z'].forEach((a, k) => {
+      if (document.activeElement !== $('s' + a)) $('s' + a).value = +b.size[k].toFixed(1);
+      if (document.activeElement !== $('c' + a)) $('c' + a).value = +b.mid[k].toFixed(1);
+    });
+  }
+  function boxEdit(kind, k) {
+    if (!model) return;
+    const vs = [...selVerts()], ids = vs.length ? vs : model.v.map((_, i) => i), b = Werk.bbox(model, ids);
+    const el = $((kind === 'size' ? 's' : 'c') + 'xyz'[k]), x = Number(String(el.value).replace(',', '.'));
+    if (!Number.isFinite(x)) { updateSelBox(); return; }
+    const pre = snapshot(), m2 = Werk.clone(model);
+    if (kind === 'size') {
+      if (b.size[k] < 0.01 || x <= 0) { updateSelBox(); return; }
+      const f = x / b.size[k];
+      const piv = b.mid.slice(); if (!vs.length) piv[1] = b.lo[1];
+      ids.forEach((i) => { m2.v[i] = m2.v[i].map((c, j) => ($('keepRatio').checked || j === k ? piv[j] + (c - piv[j]) * f : c)); });
+    } else ids.forEach((i) => { m2.v[i][k] += x - b.mid[k]; });
+    const pt = vs.length ? partners() : null;
+    if (pt) { const S = new Set(ids), ax = symAxis(); ids.forEach((i) => { const p = pt[i]; if (p === i) m2.v[i][ax] = symC; else if (p >= 0 && !S.has(p)) { const q = m2.v[i].slice(); q[ax] = 2 * symC - q[ax]; m2.v[p] = q; } }); }
+    pushUndo(pre); model = m2;
+    if (!vs.length) fit();
+    changed();
+  }
+  ['x', 'y', 'z'].forEach((a, k) => { $('s' + a).addEventListener('change', () => boxEdit('size', k)); $('c' + a).addEventListener('change', () => boxEdit('centre', k)); });
+
+  // symmetry, x-ray, grid
+  function setSym(s) {
+    sym = s; store.set('sym', s);
+    if (model && s !== 'off') symC = Werk.bbox(model).mid[symAxis()];
+    document.querySelectorAll('[data-sym]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sym === s)));
+    draw();
+  }
+  document.querySelectorAll('[data-sym]').forEach((b) => b.addEventListener('click', () => setSym(b.dataset.sym)));
+  $('xray').addEventListener('change', () => { xray = $('xray').checked; idsDirty = true; draw(); });
+  $('snap').addEventListener('change', () => { snap = $('snap').checked; store.set('snap', snap ? '1' : '0'); });
+  // whole model
+  $('mMirror').addEventListener('click', () => { if (!model) return; apply(Werk.mirror(model, 0, Werk.bbox(model).mid[0])); });
+  $('mFloor').addEventListener('click', () => { if (!model) return; const lo = Werk.bbox(model).lo[1], m2 = Werk.clone(model); m2.v.forEach((p) => { p[1] -= lo; }); apply(m2); fit(); draw(); });
+  $('mReduce').addEventListener('click', () => {
+    if (!model) return;
+    try { const n = val($('mN'), 60, 8, 400), b = Mesh.build(Werk.toRaw(model), n); apply(Werk.orient(Werk.fromTris(b.verts, b.tris)), []); eStatus(`Jetzt ${model.v.length} Punkte.`); }
+    catch (e) { eStatus('Ging nicht: ' + e.message, 'err'); }
+  });
+  $('mSym').addEventListener('click', () => {
+    if (!model) return;
+    const ax = sym === 'z' ? 2 : 0, c = sym === 'off' ? Werk.bbox(model).mid[ax] : symC;
+    const vs = [...selVerts()];
+    let side = ax === 0 ? -1 : 1;
+    if (vs.length) side = Werk.centroid(model, vs)[ax] >= c ? 1 : -1;
+    try {
+      const b = Mesh.build(Werk.toRaw(model), null, { flatten: false });
+      const half = Mesh.cut(b.verts, b.tris, ax, c, side, false), n = half.vertices.length;
+      const raw = { vertices: [...half.vertices, ...half.vertices.map((p) => { const q = p.slice(); q[ax] = 2 * c - q[ax]; return q; })], faces: [...half.faces, ...half.faces.map((f) => f.map((i) => i + n).reverse())] };
+      const b2 = Mesh.build(raw, null, { flatten: false });
+      const b3 = Mesh.build(Werk.toRaw(Werk.fromTris(b2.verts, b2.tris)), null);
+      apply(Werk.orient(Werk.fromTris(b3.verts, b3.tris)), []);
+      eStatus(b2.stats.closed ? 'Symmetrisch gemacht.' : 'Symmetrisch gemacht, aber es sind offene Kanten entstanden (rot).', b2.stats.closed ? '' : 'warn');
+    } catch (e) { eStatus('Ging nicht: ' + e.message, 'err'); }
+  });
+
+  // ---------- stretch & twist (whole model, live preview) ----------
+  const twAuto = (deg) => Math.min(72, Math.max(2, Math.ceil(Math.abs(deg) / 15)));
+  function twVals() {
+    return { s: val($('twHn'), 1, 0.1, 10), deg: val($('twAn'), 0, -1440, 1440), n: $('twN').value === '' ? 0 : Math.round(val($('twN'), 1, 1, 120)) };
+  }
+  function twNote() {
+    const { deg, n } = twVals();
+    $('twNote').textContent = deg === 0 ? 'nur beim Twist' : n ? `${n} Schichten` : `auto: ${twAuto(deg)} Schichten`;
+    $('twOk').disabled = $('twBack').disabled = !tw;
+  }
+  function twReset() {
+    tw = null;
+    $('twH').value = $('twHn').value = 1; $('twA').value = $('twAn').value = 0;
+    twNote();
+  }
+  // cut every triangle at the horizontal planes; shared edges get the same cut points
+  function twSlice(verts, tris, planes) {
+    const pts = [], keys = new Map(), out = [], eps = 1e-7;
+    const id = (p) => { const k = p.map((c) => Math.round(c * 1e4)).join(','); let i = keys.get(k); if (i == null) { i = pts.length; pts.push(p.slice()); keys.set(k, i); } return i; };
+    tris.forEach((t) => {
+      let polys = [t.map((i) => verts[i])];
+      planes.forEach((c) => {
+        const next = [];
+        polys.forEach((poly) => {
+          const d = poly.map((p) => p[1] - c);
+          if (d.every((x) => x >= -eps) || d.every((x) => x <= eps)) { next.push(poly); return; }
+          const lo = [], hi = [];
+          poly.forEach((p, k) => {
+            const k2 = (k + 1) % poly.length, q = poly[k2], dp = d[k], dq = d[k2];
+            if (dp <= eps) lo.push(p);
+            if (dp >= -eps) hi.push(p);
+            if ((dp < -eps && dq > eps) || (dp > eps && dq < -eps)) {
+              const [a, b] = p[1] < q[1] ? [p, q] : [q, p], u = (c - a[1]) / (b[1] - a[1]);
+              const x = [a[0] + (b[0] - a[0]) * u, c, a[2] + (b[2] - a[2]) * u];
+              lo.push(x); hi.push(x);
+            }
+          });
+          if (lo.length >= 3) next.push(lo);
+          if (hi.length >= 3) next.push(hi);
+        });
+        polys = next;
+      });
+      polys.forEach((poly) => {
+        const ids = poly.map(id).filter((x, k, a) => x !== a[(k + 1) % a.length]);
+        for (let k = 1; k + 1 < ids.length; k++) if (ids[0] !== ids[k] && ids[k] !== ids[k + 1] && ids[0] !== ids[k + 1]) out.push([ids[0], ids[k], ids[k + 1]]);
+      });
+    });
+    return { verts: pts, tris: out };
+  }
+  function twCompute() {
+    const { s, deg, n } = twVals(), base = tw.base, b = Werk.bbox(base);
+    const lo = b.lo[1], H = b.size[1], mx = b.mid[0], mz = b.mid[2];
+    const twist = deg !== 0 && H > 1e-6;
+    let m;
+    if (!twist) m = Werk.clone(base);
+    else {
+      const layers = n || twAuto(deg);
+      if (!tw.tri) tw.tri = Mesh.triangulate(base.v, base.f);
+      if (tw.layers !== layers) {
+        const planes = []; for (let k = 1; k < layers; k++) planes.push(lo + (H * k) / layers);
+        tw.sl = twSlice(base.v, tw.tri, planes); tw.layers = layers;
+      }
+      m = { v: tw.sl.verts.map((p) => p.slice()), f: null };
+    }
+    const rad = (deg * Math.PI) / 180;
+    m.v.forEach((p) => {
+      const t = H > 1e-6 ? (p[1] - lo) / H : 0;
+      if (twist) {
+        const a = rad * t, c = Math.cos(a), sn = Math.sin(a), x = p[0] - mx, z = p[2] - mz;
+        p[0] = mx + x * c - z * sn; p[2] = mz + x * sn + z * c;
+      }
+      p[1] = lo + (p[1] - lo) * s;
+    });
+    if (twist) m = Werk.orient(Werk.fromTris(m.v, tw.sl.tris));
+    return m;
+  }
+  function twInput(src) {
+    const pair = { twH: 'twHn', twHn: 'twH', twA: 'twAn', twAn: 'twA' }[src.id];
+    if (pair) $(pair).value = src.value;
+    twNote();
+    if (!model) return;
+    if (!tw || model !== tw.out) { pushUndo(); tw = { base: Werk.clone(model) }; }
+    try {
+      const m = twCompute();
+      tw.out = m; model = m; sel = new Set();
+      changed(); twNote();
+      eStatus('');
+    } catch (e) { eStatus('Ging nicht: ' + e.message, 'err'); }
+  }
+  ['twH', 'twA'].forEach((k) => $(k).addEventListener('input', (e) => twInput(e.target)));
+  ['twHn', 'twAn', 'twN'].forEach((k) => $(k).addEventListener('change', (e) => twInput(e.target)));
+  $('twOk').addEventListener('click', () => { if (!tw) return; twReset(); fit(); draw(); eStatus(`Übernommen: ${model.v.length} Punkte, ${model.f.length} Flächen.`); });
+  $('twBack').addEventListener('click', () => {
+    if (!tw) return;
+    const base = tw.base; undoStack.pop(); tw = null;
+    model = Werk.clone(base); twReset(); changed(); eStatus('');
+  });
+  twNote();
+
+  // ---------- keyboard ----------
+  const typing = (e) => /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && e.target.type !== 'range' && e.target.type !== 'checkbox';
+  window.addEventListener('keydown', (e) => {
+    shiftHeld = e.shiftKey;
+    if (typing(e)) return;
+    const k = e.key, cmd = e.metaKey || e.ctrlKey;
+    if (dm) { dKey(e); return; }
+    if (cmd && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+    if (cmd && (k === 'y' || k === 'Y')) { e.preventDefault(); redo(); return; }
+    if (cmd) return;
+    if (k === ' ') { spaceHeld = true; e.preventDefault(); return; }
+    if (modal) {
+      e.preventDefault();
+      const lk = k.toLowerCase();
+      if (lk === 'x' || lk === 'y' || lk === 'z') { const a = 'xyz'.indexOf(lk); if (modal.kind === 'extrude' || modal.kind === 'inset') return; modal.axis = modal.axis === a ? null : a; modal.axisVec = null; updateModal(); }
+      else if (/^[0-9]$/.test(k) || k === '.' || k === ',') { modal.typed += k; updateModal(); }
+      else if (k === '-') { modal.typed = modal.typed.startsWith('-') ? modal.typed.slice(1) : '-' + modal.typed; updateModal(); }
+      else if (k === 'Backspace') { modal.typed = modal.typed.slice(0, -1); updateModal(); }
+      else if (k === 'Enter') confirmModal();
+      else if (k === 'Escape') cancelModal();
+      else if (k === 'Shift') updateModal();
+      return;
+    }
+    if (k === 'h' || k === 'H') { fit(); draw(); return; }
+    if (tab !== 'bearbeiten' || !model) return;
+    const map = { g: 'move', s: 'scale', r: 'rotate', e: 'extrude', i: 'inset', m: 'merge', t: 'split', k: 'connect', f: 'fill', Delete: 'del', Backspace: 'del' };
+    const t = map[k] || map[k.toLowerCase()];
+    if (t) { e.preventDefault(); eStatus(''); tools[t](); return; }
+    if (k === '1' || k === '2' || k === '3') { setMode({ 1: 'v', 2: 'e', 3: 'f' }[k]); return; }
+    if (k === 'a' || k === 'A') {
+      e.preventDefault();
+      const all = selMode === 'v' ? model.v.map((_, i) => i) : selMode === 'f' ? model.f.map((_, i) => i) : edges().map((x) => x.a + ',' + x.b);
+      sel = sel.size >= all.length ? new Set() : new Set(all);
+      selChanged(); return;
+    }
+    if (k === 'Escape') { sel = new Set(); selChanged(); }
+  });
+  window.addEventListener('keyup', (e) => { shiftHeld = e.shiftKey; if (e.key === ' ') spaceHeld = false; if (modal && e.key === 'Shift') updateModal(); });
+
+  function setHelp() {
+    const h = $('help');
+    if (modal) {
+      h.className = 'help modal';
+      const ax = modal.kind === 'extrude' || modal.kind === 'inset' ? '' : ' · X Y Z = Achse';
+      h.innerHTML = '';
+      const b = document.createElement('b');
+      b.textContent = `${NAMES[modal.kind]}: ${modal.info || ''}${modal.typed ? ' (getippt)' : ''}${ax} · Zahl tippen · Klick = fertig · Esc = zurück`;
+      h.append(b);
+      return;
+    }
+    h.className = 'help';
+    h.textContent = tab === 'bearbeiten' ? 'Klick wählt · ⇧ dazu · Ziehen am Gewählten verschiebt · ins Leere dreht' : 'Ziehen dreht · 2 Finger verschieben · Kneifen zoomt';
+  }
+
+  // ---------- stats ----------
+  function updateStats() {
+    const box = $('stats'); box.innerHTML = '';
+    if (!model) return;
+    const s = Werk.stats(model);
+    [['Punkte', s.V], ['Flächen', s.F], ['Geschlossen', s.closed ? 'ja' : s.open ? `nein, ${s.open} offen` : 'nein', s.closed ? 'ok' : 'bad'], ['Maße mm', s.size.map(fmt).join('×')]].forEach(([k, v, cls]) => {
+      const d = document.createElement('div'); d.className = 'stat' + (cls ? ' ' + cls : '');
+      const b = document.createElement('b'); b.textContent = v;
+      const sp = document.createElement('span'); sp.textContent = k;
+      d.append(b, sp); box.append(d);
+    });
+    $('tag').textContent = `${name} · ${s.V} Punkte`;
+  }
+
+  // ---------- 1 Neu: shapes ----------
+  const SHAPES = {
+    box: { p: [['Breite', 'w', 60], ['Höhe', 'h', 40], ['Tiefe', 'd', 40]], make: (o) => Werk.box(o.w, o.h, o.d), name: 'Quader' },
+    column: { p: [['Ø unten', 'db', 50], ['Ø oben', 'dt', 50], ['Höhe', 'h', 80], ['Seiten', 'n', 8]], make: (o) => Werk.column(o.db, o.dt, o.h, o.n), name: 'Säule' },
+    sphere: { p: [['Ø', 'd', 60], ['Seiten', 'n', 10], ['Ringe', 'r', 6]], make: (o) => Werk.sphere(o.d, o.n, o.r), name: 'Kugel' },
+    ring: { p: [['Ø außen', 'd', 80], ['Dicke', 't', 16], ['Seiten', 'n', 12], ['Rund', 'r', 4]], make: (o) => Werk.ring(o.d, o.t, o.n, o.r), name: 'Ring' },
+    house: { p: [['Breite', 'w', 80], ['Wand', 'h', 50], ['Tiefe', 'd', 60], ['Dach', 'r', 30]], make: (o) => Werk.house(o.w, o.h, o.d, o.r), name: 'Haus' },
+  };
+  let shape = 'box';
+  function shapeParams() {
+    const box = $('shapeParams'); box.innerHTML = '';
+    SHAPES[shape].p.forEach(([lab, key, def]) => {
+      const d = document.createElement('div');
+      const l = document.createElement('label'); l.textContent = lab + (/Seiten|Ringe|Rund/.test(lab) ? '' : ' (mm)'); l.htmlFor = 'sp_' + key;
+      const i = document.createElement('input'); i.type = 'number'; i.className = 'num'; i.id = 'sp_' + key; i.min = /Ø oben/.test(lab) ? '0' : '1'; i.step = '1';
+      i.value = store.get('sp_' + shape + key) || def;
+      i.addEventListener('change', () => store.set('sp_' + shape + key, i.value));
+      d.append(l, i); box.append(d);
+    });
+  }
+  function makeShape() {
+    const o = {};
+    SHAPES[shape].p.forEach(([lab, key, def]) => { o[key] = val($('sp_' + key), def, /Ø oben/.test(lab) ? 0 : 1, /Seiten/.test(lab) ? 64 : 2000); });
+    return SHAPES[shape].make(o);
+  }
+  document.querySelectorAll('[data-shape]').forEach((b) => b.addEventListener('click', () => {
+    shape = b.dataset.shape; store.set('shape', shape);
+    document.querySelectorAll('[data-shape]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    shapeParams();
+  }));
+  $('shapeNew').addEventListener('click', () => { setModel(makeShape(), SHAPES[shape].name); status(`${SHAPES[shape].name} angelegt. Weiter unter „3 Bearbeiten“.`); });
+  $('shapeAdd').addEventListener('click', () => {
+    if (!model) { $('shapeNew').click(); return; }
+    const s = makeShape(), b = Werk.bbox(model);
+    s.v.forEach((p) => { p[0] += b.mid[0]; p[1] += b.hi[1]; p[2] += b.mid[2]; });
+    const n0 = model.f.length, m2 = Werk.join(model, s);
+    pushUndo(); model = m2;
+    modeRaw('f'); sel = new Set(s.f.map((_, i) => n0 + i));
+    fit(); changed(); setTab('bearbeiten');
+    eStatus('Neue Form ist gewählt: am Gewählten ziehen oder G drücken.');
+  });
+  const status = (t, cls) => { $('status').textContent = t || ''; $('status').className = 'status' + (cls ? ' ' + cls : ''); };
+
+  // ---------- drawing on a flat sheet (outline, profile, photo tracing) ----------
+  const dcv = $('draw'), dctx = dcv.getContext('2d');
+  let dm = null, dkind = 'extrude', dPhoto = null;
+  document.querySelectorAll('[data-dkind]').forEach((b) => b.addEventListener('click', () => {
+    dkind = b.dataset.dkind;
+    document.querySelectorAll('[data-dkind]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    $('dDepthBox').hidden = dkind !== 'extrude'; $('dSidesBox').hidden = dkind !== 'revolve';
+    $('drawHint').textContent = dkind === 'extrude' ? 'Rechts Punkte klicken, Klick auf den ersten Punkt schließt. Punkte lassen sich ziehen.' : 'Halbes Profil rechts der gestrichelten Achse klicken (z. B. Vase: unten an der Achse anfangen, außen hoch, oben zurück zur Achse). Punkte auf der Achse werden Spitzen.';
+  }));
+  async function loadImage(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image(); img.src = url; await img.decode();
+      return img;
+    } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  }
+  async function setDPhoto(file) {
+    if (!file || !/^image\//.test(file.type)) return;
+    try { dPhoto = await loadImage(file); $('dPhotoDrop').innerHTML = '<b>Vorlage geladen</b> · andere hierher ziehen'; $('dPhotoClear').hidden = false; }
+    catch { status('Das Foto ließ sich nicht öffnen.', 'err'); }
+  }
+  $('dPhoto').addEventListener('change', () => setDPhoto($('dPhoto').files[0]));
+  dropZone($('dPhotoDrop'), (files) => setDPhoto(files[0]));
+  $('dPhotoClear').addEventListener('click', () => { dPhoto = null; $('dPhotoClear').hidden = true; $('dPhotoDrop').innerHTML = '<b>Foto als Vorlage</b> (optional) hierher ziehen oder klicken'; });
+  $('drawStart').addEventListener('click', () => openDraw({ kind: dkind, img: dPhoto }));
+
+  // dm: { kind, pts (world, y up), closed, img, rect [x0, y0, x1, y1], s (px per unit), ox, oy (screen of world 0,0), op, done(pts) }
+  function openDraw(o) {
+    if (modal) confirmModal();
+    const { W, H } = csize();
+    dm = Object.assign({ pts: [], closed: false, op: Number($('dOp').value), drag: null }, o);
+    if (dm.kind === 'trace') {
+      const iw = dm.img.naturalWidth, ih = dm.img.naturalHeight;
+      dm.rect = [0, 0, iw, ih]; dm.s = Math.min(W / iw, H / ih) * 0.9; dm.ox = (W - iw * dm.s) / 2; dm.oy = H - (H - ih * dm.s) / 2;
+    } else {
+      dm.s = H / 240; dm.ox = dm.kind === 'revolve' ? W * 0.3 : W / 2; dm.oy = H - 24;
+      if (dm.img) { const ih = 200, iw = (ih * dm.img.naturalWidth) / dm.img.naturalHeight; dm.rect = [-iw / 2, 0, iw / 2, ih]; }
+    }
+    dcv.hidden = false; $('drawBar').hidden = false; $('dOpBox').hidden = !dm.img;
+    $('help').hidden = true; $('views').hidden = true; $('tag').hidden = true;
+    dMsg(); dDraw();
+  }
+  function closeDraw() { dm = null; dcv.hidden = true; $('drawBar').hidden = true; $('help').hidden = false; $('views').hidden = false; $('tag').hidden = false; draw(); }
+  const dToS = (p) => [dm.ox + p[0] * dm.s, dm.oy - p[1] * dm.s];
+  const dToW = (x, y) => [(x - dm.ox) / dm.s, (dm.oy - y) / dm.s];
+  function dMsg(t) {
+    const n = dm.pts.length;
+    $('dMsg').textContent = t || (dm.closed ? 'Geschlossen. ✓ Fertig oder Punkte ziehen' : n < 3 ? `${n} Punkte · weiter klicken` : 'Auf den ersten Punkt klicken schließt');
+  }
+  function dDraw() {
+    if (!dm) return;
+    const r = dcv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    dcv.width = Math.max(1, Math.round(r.width * dpr)); dcv.height = Math.max(1, Math.round(r.height * dpr));
+    const c = dctx; c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = r.width, H = r.height;
+    c.fillStyle = css('--panel'); c.fillRect(0, 0, W, H);
+    if (dm.img) {
+      const a = dToS([dm.rect[0], dm.rect[3]]), b = dToS([dm.rect[2], dm.rect[1]]);
+      c.globalAlpha = dm.op; c.drawImage(dm.img, a[0], a[1], b[0] - a[0], b[1] - a[1]); c.globalAlpha = 1;
+    }
+    if (dm.kind !== 'trace') {
+      // 10 mm grid, every 5th stronger
+      const [wx0, wy1] = dToW(0, 0), [wx1, wy0] = dToW(W, H);
+      c.lineWidth = 1;
+      for (let x = Math.floor(wx0 / 10) * 10; x <= wx1; x += 10) { const X = dToS([x, 0])[0]; c.strokeStyle = css('--matline'); c.globalAlpha = x % 50 ? 0.5 : 1; c.beginPath(); c.moveTo(X + 0.5, 0); c.lineTo(X + 0.5, H); c.stroke(); }
+      for (let y = Math.floor(wy0 / 10) * 10; y <= wy1; y += 10) { const Y = dToS([0, y])[1]; c.strokeStyle = css('--matline'); c.globalAlpha = y % 50 ? 0.5 : 1; c.beginPath(); c.moveTo(0, Y + 0.5); c.lineTo(W, Y + 0.5); c.stroke(); }
+      c.globalAlpha = 1;
+      const g = dToS([0, 0]);
+      c.strokeStyle = css('--muted'); c.beginPath(); c.moveTo(0, g[1] + 0.5); c.lineTo(W, g[1] + 0.5); c.stroke();
+      if (dm.kind === 'revolve') { c.strokeStyle = css('--sel'); c.setLineDash([6, 4]); c.lineWidth = 1.5; c.beginPath(); c.moveTo(g[0], 0); c.lineTo(g[0], H); c.stroke(); c.setLineDash([]); }
+      c.fillStyle = css('--muted'); c.font = '11px ' + css('--font-data');
+      c.fillText('10 mm', dToS([wx0, 0])[0] + 6, g[1] - 6);
+    }
+    const S = dm.pts.map(dToS);
+    if (S.length) {
+      c.strokeStyle = css('--accent'); c.lineWidth = 2; c.lineJoin = 'round';
+      c.beginPath(); S.forEach((p, k) => (k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])));
+      if (dm.closed) { c.closePath(); c.globalAlpha = 0.18; c.fillStyle = css('--accent'); c.fill(); c.globalAlpha = 1; }
+      c.stroke();
+      S.forEach((p, k) => { c.beginPath(); c.arc(p[0], p[1], k === 0 && !dm.closed ? 6 : 4, 0, 2 * Math.PI); c.fillStyle = k === 0 ? css('--sel') : css('--accent'); c.fill(); });
+      if (dm.kind !== 'trace' && dm.pts.length > 1) {
+        const ys = dm.pts.map((p) => p[1]), xs = dm.pts.map((p) => p[0]);
+        c.fillStyle = css('--muted'); c.font = '11px ' + css('--font-data');
+        c.fillText(`${fmt(Math.max(...xs) - Math.min(...xs))} × ${fmt(Math.max(...ys) - Math.min(...ys))} mm`, 10, 20);
+      }
+    }
+  }
+  function dZoom(x, y, f) {
+    if (!dm) return;
+    dm.ox = x - (x - dm.ox) * f; dm.oy = y - (y - dm.oy) * f; dm.s *= f; dDraw();
+  }
+  dcv.addEventListener('contextmenu', (e) => { e.preventDefault(); if (dm && !dm.closed) { dm.pts.pop(); dMsg(); dDraw(); } });
+  dcv.addEventListener('pointerdown', (e) => {
+    if (!dm || e.button === 2) return;
+    dcv.setPointerCapture(e.pointerId);
+    const r = dcv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (e.button === 1 || spaceHeld) { dm.drag = { pan: true, x, y, ox: dm.ox, oy: dm.oy }; return; }
+    if (e.altKey && dm.img && dm.kind !== 'trace') { dm.drag = { img: true, x, y, rect: dm.rect.slice() }; return; }
+    const S = dm.pts.map(dToS), hit = S.findIndex((p) => Math.hypot(p[0] - x, p[1] - y) < 10);
+    if (hit === 0 && !dm.closed && dm.pts.length >= 3) { dm.closed = true; dMsg(); dDraw(); return; }
+    if (hit >= 0) { dm.drag = { i: hit }; return; }
+    if (dm.closed) {
+      // a click on the outline inserts a point there
+      let best = null;
+      S.forEach((a, k) => { const b = S[(k + 1) % S.length], vx = b[0] - a[0], vy = b[1] - a[1], l2 = vx * vx + vy * vy || 1, t = Math.max(0, Math.min(1, ((x - a[0]) * vx + (y - a[1]) * vy) / l2)), d = Math.hypot(a[0] + vx * t - x, a[1] + vy * t - y); if (d < 8 && (!best || d < best.d)) best = { k, d }; });
+      if (!best) return;
+      dm.pts.splice(best.k + 1, 0, dSnap(dToW(x, y), e.shiftKey)); dm.drag = { i: best.k + 1 }; dDraw(); return;
+    }
+    dm.pts.push(dSnap(dToW(x, y), e.shiftKey)); dm.drag = { i: dm.pts.length - 1 }; dMsg(); dDraw();
+  });
+  function dSnap(p, free) {
+    if (dm.kind === 'revolve' && p[0] < 0) p[0] = 0;
+    if (dm.kind === 'trace' || free) return p;
+    return [Math.round(p[0]), Math.round(p[1])];
+  }
+  dcv.addEventListener('pointermove', (e) => {
+    if (!dm || !dm.drag) return;
+    const r = dcv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, d = dm.drag;
+    if (d.pan) { dm.ox = d.ox + x - d.x; dm.oy = d.oy + y - d.y; }
+    else if (d.img) { const dx = (x - d.x) / dm.s, dy = -(y - d.y) / dm.s; dm.rect = [d.rect[0] + dx, d.rect[1] + dy, d.rect[2] + dx, d.rect[3] + dy]; }
+    else dm.pts[d.i] = dSnap(dToW(x, y), e.shiftKey);
+    dDraw();
+  });
+  dcv.addEventListener('pointerup', () => { if (dm) dm.drag = null; });
+  dcv.addEventListener('dblclick', () => { if (dm && dm.pts.length >= 3) { dm.closed = true; dMsg(); dDraw(); } });
+  dcv.addEventListener('wheel', (e) => wheel(e, dcv, dZoom, (dx, dy) => { dm.ox += dx; dm.oy += dy; dDraw(); }), { passive: false });
+  $('dOp').addEventListener('input', () => { if (dm) { dm.op = Number($('dOp').value); dDraw(); } });
+  $('dUndo').addEventListener('click', () => { if (!dm) return; if (dm.closed) dm.closed = false; else dm.pts.pop(); dMsg(); dDraw(); });
+  $('dCancel').addEventListener('click', closeDraw);
+  $('dDone').addEventListener('click', finishDraw);
+  function dKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); closeDraw(); }
+    else if (e.key === 'Enter') { e.preventDefault(); finishDraw(); }
+    else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); $('dUndo').click(); }
+    else if (e.key === ' ') { spaceHeld = true; e.preventDefault(); }
+  }
+  function finishDraw() {
+    if (!dm) return;
+    let pts = dm.pts.slice();
+    if (pts.length < 3) { dMsg('Mindestens 3 Punkte'); return; }
+    // drop points that sit on top of each other
+    pts = pts.filter((p, k) => { const q = pts[(k + 1) % pts.length]; return Math.hypot(p[0] - q[0], p[1] - q[1]) > 1e-6; });
+    if (Werk.selfCrossing(pts)) { dMsg('Die Linie kreuzt sich selbst. Punkte verschieben'); return; }
+    if (dm.kind === 'trace') { const done = dm.done; closeDraw(); done(pts); return; }
+    let m;
+    try {
+      if (dm.kind === 'extrude') m = Werk.extrude2D(pts, val($('dDepth'), 30, 1, 1000));
+      else {
+        if (pts.every((p) => p[0] <= 0.5)) { dMsg('Das Profil braucht Punkte rechts der Achse'); return; }
+        m = Werk.revolve(pts, val($('dSides'), 12, 3, 64));
+      }
+    } catch (err) { dMsg('Ging nicht: ' + err.message); return; }
+    const h = Number($('dHeight').value);
+    if (h > 0) { const s = h / Math.max(1e-6, Werk.bbox(m).size[1]); m.v.forEach((p) => { for (let k = 0; k < 3; k++) p[k] *= s; }); Werk.place(m); }
+    const kind = dm.kind;
+    closeDraw();
+    setModel(m, kind === 'extrude' ? 'Umriss' : 'Drehkörper');
+    status(`${kind === 'extrude' ? 'Umriss ausgezogen' : 'Profil gedreht'}: ${m.v.length} Punkte. Weiter unter „3 Bearbeiten“.`);
+  }
+
+  // ---------- drag and drop helper ----------
+  function dropZone(el, fn) {
+    el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('over'); });
+    el.addEventListener('dragleave', () => el.classList.remove('over'));
+    el.addEventListener('drop', (e) => { e.preventDefault(); el.classList.remove('over'); if (e.dataTransfer.files.length) fn([...e.dataTransfer.files]); });
+  }
+
+  // ---------- Claude ----------
+  const errorCopy = {
+    not_granted: 'Die Seite darf Claude nicht verwenden. Erlaube es im Dialog oder in den Berechtigungen der Seite.',
+    sampling_disabled: 'Claude ist für dieses Konto nicht verfügbar.',
+    rate_limited: 'Gerade zu viele Anfragen oder dein Nutzungslimit ist erreicht. Versuch es später noch einmal.',
+    session_expired: 'Bitte melde dich bei claude.ai neu an.',
+    refused: 'Claude hat diese Anfrage abgelehnt. Formuliere sie anders.',
+    invalid_json: 'Claude hat kein lesbares Modell geliefert. Versuch es noch einmal oder mit weniger Punkten.',
+    empty_completion: 'Claude hat nichts geliefert. Versuch es mit einer einfacheren Beschreibung.',
+    prompt_too_large: 'Die Beschreibung ist zu lang.',
+    images_unavailable: 'Fotos lassen sich hier nicht an Claude schicken. Nutze den Auftrag zum Kopieren.',
+    image_rejected: 'Ein Foto wurde nicht angenommen (zu groß oder falsches Format).',
+  };
+  const samplePromise = window.claude && typeof window.claude.use === 'function' ? window.claude.use('sample').catch(() => null) : Promise.resolve(null);
+  function buildPrompt(wish, n, extra) {
+    return [
+      'Du erzeugst ein Low-Poly-3D-Modell, aus dem später ein Papier-Bastelbogen (Faltmodell) wird.',
+      wish,
+      `Höchstens ${n} Eckpunkte. Weniger ist gut, wenn die Form damit schon erkennbar ist. Zu viele Punkte reduziert die Seite selbst.`,
+      'Anforderungen an das Modell:',
+      '- Ein einziger geschlossener, wasserdichter Körper: jede Kante gehört zu genau zwei Flächen. Keine sich durchdringenden Teile, keine inneren Flächen, keine losen Punkte.',
+      '- Durchgehende Löcher (z. B. Fingerringe einer Schere, Henkel) sind erlaubt, wenn sie als echte Durchbrüche modelliert sind.',
+      '- Jede ebene Seite des Objekts ist EINE Fläche (ein Vieleck), deren Punkte exakt in einer Ebene liegen. Ebene Seiten nicht in Dreiecke zerlegen und keine zusätzlichen Punkte mitten auf ebene Seiten setzen.',
+      '- Flächen sind Dreiecke, Vierecke oder ebene Vielecke. Punkte jeder Fläche gegen den Uhrzeigersinn, von außen gesehen.',
+      extra || '- Einheit Millimeter, realistische Proportionen, längste Seite 100 bis 200 mm. Y-Achse zeigt nach oben, das Objekt steht bzw. liegt auf y = 0.',
+      '- Charakteristische Merkmale betonen, unwichtige Details weglassen. Dünne Teile (Klingen, Bleche) mindestens 4 mm dick.',
+      'Wenn der Wunsch mehrdeutig ist oder das genannte Objekt so nicht existiert (z. B. ein Modell oder eine Variante, die es nicht gab), erzeuge KEIN Modell, sondern antworte mit:',
+      '{"question": "kurze Rückfrage auf Deutsch", "options": ["2 bis 4 kurze, eindeutige Varianten"]}',
+      'Sonst antworte nur mit diesem JSON:',
+      '{"name": "kurzer deutscher Name", "notes": "ein Satz auf Deutsch, was vereinfacht wurde", "vertices": [[x, y, z], ...], "faces": [[0, 1, 2], ...]}',
+      'Indizes 0-basiert, Zahlen mit höchstens einer Nachkommastelle.',
+    ].join('\n');
+  }
+  const MANUAL = '\nAntworte ausschließlich mit dem JSON, ohne Erklärung und ohne Codeblock.';
+  function parseAnswer(txt) {
+    const a = txt.indexOf('{'), b = txt.lastIndexOf('}');
+    if (a < 0 || b <= a) throw new Error('In der Antwort steht kein JSON.');
+    return JSON.parse(txt.slice(a, b + 1));
+  }
+  // Claude's model → cleaned polygons (optionally stretched to the measured size)
+  function takeModel(res, n, dims) {
+    const b = Mesh.build(res, n);
+    const m = Werk.orient(Werk.fromTris(b.verts, b.tris));
+    if (dims) {
+      const bb = Werk.bbox(m), want = [dims.W, dims.H, dims.D];
+      m.v.forEach((p) => { for (let k = 0; k < 3; k++) if (bb.size[k] > 1e-6) p[k] = ((p[k] - bb.mid[k]) * want[k]) / bb.size[k]; });
+      Werk.place(m);
+    }
+    const nm = String(res.name || 'Modell').slice(0, 60);
+    setModel(m, nm);
+    return { b, nm };
+  }
+  function showChoices(res, onPick) {
+    const box = $('choices'); box.innerHTML = '';
+    const opts = Array.isArray(res.options) ? res.options.slice(0, 4) : [];
+    opts.forEach((o) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = String(o); b.addEventListener('click', () => onPick(String(o))); box.append(b); });
+    box.hidden = !opts.length;
+  }
+  let cCtl = null, cManual = null;
+  async function claudeText(text) {
+    const n = val($('cPoints'), 70, 8, 400); $('cPoints').value = n;
+    if (!text.trim()) { status('Beschreibe zuerst, was gebaut werden soll.', 'warn'); return; }
+    $('choices').hidden = true;
+    const prompt = buildPrompt('Wunsch des Nutzers: """' + text.slice(0, 2000) + '"""', n);
+    const sample = await samplePromise;
+    if (!sample) {
+      cManual = { prompt: prompt + MANUAL, n, text };
+      $('cManual').hidden = false; $('cAnswer').value = '';
+      try { await navigator.clipboard.writeText(cManual.prompt); status('Auftrag kopiert. Jetzt in einen Claude-Chat einfügen.'); }
+      catch { status('Kopieren wurde blockiert. Klicke auf „Auftrag nochmal kopieren“.', 'warn'); }
+      return;
+    }
+    $('cGo').disabled = true; $('cStop').hidden = false; cCtl = new AbortController();
+    status('Claude baut das Modell. Das kann bis zu einer Minute dauern …');
+    try { handleText(await sample.json(prompt, { modelTier: 'complex', signal: cCtl.signal }), n); }
+    catch (e) { claudeError(e, status); }
+    finally { $('cGo').disabled = false; $('cStop').hidden = true; cCtl = null; }
+  }
+  function claudeError(e, out) {
+    if (e && e.code === 'cancelled') out('Abgebrochen.');
+    else if (e && e.code) out(errorCopy[e.code] || 'Die Verbindung zu Claude ist abgebrochen. Versuch es noch einmal.', 'err');
+    else out('Das Modell ließ sich nicht verarbeiten: ' + (e && e.message ? e.message : 'unbekannter Fehler'), 'err');
+  }
+  function handleText(res, n) {
+    if (res && res.question) { status(String(res.question)); showChoices(res, (o) => { $('prompt').value = o; claudeText(o); }); return; }
+    const { b, nm } = takeModel(res, n);
+    status(b.stats.closed ? `${nm}: fertig. ${res.notes ? String(res.notes) : ''}` : `${nm}: das Modell ist nicht geschlossen (rot). Unter „3 Bearbeiten“ mit F füllen oder neu erzeugen.`, b.stats.closed ? '' : 'warn');
+  }
+  $('cGo').addEventListener('click', () => claudeText($('prompt').value));
+  $('cStop').addEventListener('click', () => cCtl && cCtl.abort());
+  $('cCopy').addEventListener('click', async () => { if (!cManual) return; try { await navigator.clipboard.writeText(cManual.prompt); status('Auftrag kopiert.'); } catch { status('Kopieren wurde blockiert.', 'warn'); } });
+  $('cUse').addEventListener('click', () => {
+    if (!cManual) return;
+    let res;
+    try { res = parseAnswer($('cAnswer').value); } catch (e) { status('Die Antwort ließ sich nicht lesen: ' + e.message + ' Kopiere Claudes ganze Antwort.', 'err'); return; }
+    try { handleText(res, cManual.n); } catch (e) { status('Das Modell ließ sich nicht verarbeiten: ' + e.message, 'err'); }
+  });
+
+  // ---------- OBJ ----------
+  function readInput(txt) {
+    const t = txt.trim();
+    if (!t) throw new Error('Das Textfeld ist leer.');
+    if (/"vertices"/.test(t)) { const j = parseAnswer(t); return { raw: j, json: true, name: j.name ? String(j.name).slice(0, 60) : 'Modell' }; }
+    const raw = Mesh.parseOBJ(t);
+    if (!raw.vertices.length || !raw.faces.length) throw new Error('Keine Zeilen mit „v“ und „f“ gefunden.');
+    const o = t.match(/^o\s+(.+)$/m);
+    return { raw, name: o ? o[1].trim().replace(/_/g, ' ').slice(0, 60) : 'Modell' };
+  }
+  function diagnose(raw, base) {
+    const und = new Map(), dir = new Map();
+    raw.faces.forEach((f) => f.forEach((a, k) => {
+      const b = f[(k + 1) % f.length]; if (a === b) return;
+      const u = a < b ? a + ',' + b : b + ',' + a; und.set(u, (und.get(u) || 0) + 1);
+      const d = a + ',' + b; dir.set(d, (dir.get(d) || 0) + 1);
+    }));
+    const nm = (k) => k.split(',').map((x) => Number(x) + base).join('–');
+    const open = [...und].filter(([, c]) => c === 1).map(([k]) => nm(k));
+    const many = [...und].filter(([, c]) => c > 2).map(([k]) => nm(k));
+    const same = [...dir].filter(([, c]) => c > 1).map(([k]) => nm(k));
+    const lo = [0, 1, 2].map((k) => Math.min(...raw.vertices.map((v) => v[k]))), hi = [0, 1, 2].map((k) => Math.max(...raw.vertices.map((v) => v[k])));
+    return { open, many, same, longest: Math.max(...hi.map((x, k) => x - lo[k])), base };
+  }
+  const few = (l) => l.slice(0, 80).join(', ') + (l.length > 80 ? ` und ${l.length - 80} weitere` : '');
+  let fixText = '';
+  function showIssues(d) {
+    const items = [], fix = [];
+    if (d.longest <= 5) { items.push('Das Modell ist in Metern angegeben. Die Seite hat es in Millimeter umgerechnet.'); fix.push(`- Einheit: Die Koordinaten sind in Metern (längste Seite ${d.longest}). Bitte Millimeter verwenden, längste Seite 100 bis 200 mm.`); }
+    if (d.open.length) { items.push(`${d.open.length} offene Kanten (rot): Das Modell ist eine Haut, kein geschlossener Körper. Unter „3 Bearbeiten“ schließt F die Löcher.`); fix.push(`- Nicht geschlossen: ${d.open.length} Kanten gehören nur zu einer Fläche (Punktnummern ${d.base ? 'ab 1 wie im OBJ' : 'ab 0 wie im JSON'}): ${few(d.open)}. Jede Kante muss zu genau zwei Flächen gehören. Dünne Teile (Sitz, Lehne, Blätter) als Platte mit Ober- und Unterseite und Rand modellieren, Stäbe und Beine als geschlossene Prismen.`); }
+    if (d.many.length) { items.push(`${d.many.length} Kanten gehören zu mehr als zwei Flächen.`); fix.push(`- An ${d.many.length} Kanten hängen mehr als zwei Flächen: ${few(d.many)}. Teile nicht ineinanderstecken, sondern zu einer Hülle verbinden.`); }
+    if (d.same.length) { items.push(`${d.same.length} Kanten werden von zwei Flächen in derselben Richtung durchlaufen. Die Seite dreht die Flächen selbst.`); fix.push(`- Uneinheitliche Flächenrichtung an ${d.same.length} Kanten: ${few(d.same)}. Alle Flächen gegen den Uhrzeigersinn, von außen gesehen.`); }
+    $('issues').innerHTML = '';
+    items.forEach((t) => { const li = document.createElement('li'); li.textContent = t; $('issues').append(li); });
+    $('issues').hidden = !items.length;
+    const big = d.open.length || d.many.length || d.same.length || d.longest <= 5;
+    fixText = big ? ['Dein 3D-Modell hat Fehler, die ein Papier-Bastelbogen nicht verträgt. Bitte korrigiere sie und gib das ganze Modell neu aus, im selben Format wie vorher.', ...fix, 'Sonst bitte nichts an der Form ändern. Antworte nur mit dem Modell, ohne Erklärung.'].join('\n') : '';
+    $('copyFix').hidden = !fixText;
+  }
+  $('copyFix').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(fixText); status('Korrektur kopiert. In denselben Claude-Chat einfügen und die neue Antwort hier einsetzen.'); }
+    catch { status('Kopieren wurde blockiert.', 'warn'); }
+  });
+  function runObj() {
+    let inp;
+    try { inp = readInput($('objtext').value); } catch (e) { status('Der Text ließ sich nicht lesen: ' + e.message, 'err'); return; }
+    try {
+      const n = $('adjust').checked ? val($('points'), 200, 8, 400) : null;
+      showIssues(diagnose(inp.raw, inp.json ? 0 : 1));
+      const b = Mesh.build(inp.raw, n);
+      setModel(Werk.orient(Werk.fromTris(b.verts, b.tris)), inp.name);
+      lastLog = b.log;
+      status(b.stats.closed ? `Bereinigt: ${b.stats.V} Punkte. Weiter unter „3 Bearbeiten“ oder „4 Speichern“.` : 'Bereinigt, aber nicht geschlossen (rot). F unter „3 Bearbeiten“ schließt Löcher, oder Korrektur für Claude kopieren.', b.stats.closed ? '' : 'warn');
+    } catch (e) { status('Das Modell ließ sich nicht verarbeiten: ' + (e && e.message ? e.message : 'unbekannter Fehler'), 'err'); }
+  }
+  let lastLog = null;
+  $('go').addEventListener('click', runObj);
+  $('adjust').addEventListener('change', () => { $('points').disabled = !$('adjust').checked; });
+  $('toText').addEventListener('click', () => { if (!model) return; const b = Mesh.build(Werk.toRaw(model), null); $('objtext').value = Mesh.toOBJ(b, name); status('Das Modell steht jetzt im Textfeld.'); });
+  async function objFile(f) { if (!f) return; $('objtext').value = await f.text(); $('bObj').open = true; runObj(); }
+  $('file').addEventListener('change', () => objFile($('file').files[0]));
+  dropZone($('objDrop'), (files) => objFile(files[0]));
+
+  // ---------- 2 Fotos ----------
+  const SLOTS = [['front', 'Vorne', 'gerade von vorne'], ['side', 'Seite', 'Vorderseite rechts'], ['top', 'Oben', 'Vorderseite unten'], ['angle', 'Schräg', 'nur für Claude']];
+  const photos = {};
+  SLOTS.forEach(([key, title, sub]) => {
+    const el = document.createElement('div'); el.className = 'slot'; el.dataset.slot = key;
+    el.innerHTML = `<div class="t">${title} <small>${sub}</small></div><canvas width="240" height="240" aria-label="Foto ${title}"></canvas><input type="file" accept="image/*" class="vh"><div class="sb"></div>`;
+    $('photos').append(el);
+    const cv = el.querySelector('canvas'), inp = el.querySelector('input'), sb = el.querySelector('.sb');
+    photos[key] = { el, cv, inp, sb, img: null, key, title };
+    inp.addEventListener('change', () => { if (inp.files[0]) loadSlot(key, inp.files[0]); inp.value = ''; });
+    cv.addEventListener('click', (e) => {
+      const ph = photos[key];
+      if (!ph.img) { inp.click(); return; }
+      if (key === 'angle') return;
+      // the clicked colour counts as background
+      const r = cv.getBoundingClientRect(), g = ph.geo, x = Math.floor(((e.clientX - r.left) / r.width * 240 - g.x) / g.s), y = Math.floor(((e.clientY - r.top) / r.height * 240 - g.y) / g.s);
+      if (x < 0 || y < 0 || x >= ph.w || y >= ph.h) return;
+      const o = (y * ph.w + x) * 4;
+      ph.extra.push([ph.data[o], ph.data[o + 1], ph.data[o + 2]]); ph.poly = null;
+      computeMask(key); paintSlot(key); updateDims();
+    });
+    dropZone(el, (files) => loadSlot(key, files[0]));
+    paintSlot(key);
+  });
+  dropZone($('photos'), (files) => {
+    const free = SLOTS.map(([k]) => k).filter((k) => !photos[k].img);
+    files.filter((f) => /^image\//.test(f.type)).forEach((f, i) => { const k = free[i] || SLOTS[Math.min(i, 3)][0]; loadSlot(k, f); });
+  });
+  async function loadSlot(key, file) {
+    if (!file || !/^image\//.test(file.type)) return;
+    const ph = photos[key];
+    try { ph.img = await loadImage(file); } catch { $('pStatus').textContent = 'Das Foto ließ sich nicht öffnen.'; return; }
+    ph.file = file;
+    const sc = Math.min(1, 260 / Math.max(ph.img.naturalWidth, ph.img.naturalHeight));
+    ph.w = Math.max(1, Math.round(ph.img.naturalWidth * sc)); ph.h = Math.max(1, Math.round(ph.img.naturalHeight * sc));
+    const c = document.createElement('canvas'); c.width = ph.w; c.height = ph.h;
+    const cx = c.getContext('2d', { willReadFrequently: true }); cx.drawImage(ph.img, 0, 0, ph.w, ph.h);
+    ph.data = cx.getImageData(0, 0, ph.w, ph.h).data;
+    ph.refs = Werk.borderColours(ph.data, ph.w, ph.h); ph.extra = []; ph.poly = null; ph.flip = false;
+    computeMask(key); paintSlot(key); updateDims();
+  }
+  function computeMask(key) {
+    const ph = photos[key];
+    if (!ph.img || key === 'angle') { ph.crop = null; return; }
+    const m = ph.poly ? Werk.polyMask(ph.poly, ph.w, ph.h) : Werk.maskFromImage(ph.data, ph.w, ph.h, [...ph.refs, ...ph.extra], Number($('tol').value));
+    ph.mask = m; ph.crop = Werk.crop(m, ph.w, ph.h);
+  }
+  function paintSlot(key) {
+    const ph = photos[key], c = ph.cv.getContext('2d');
+    c.clearRect(0, 0, 240, 240);
+    ph.el.classList.toggle('has', !!ph.img);
+    ph.sb.innerHTML = '';
+    if (!ph.img) {
+      c.fillStyle = css('--muted'); c.font = '20px ' + css('--font-body'); c.textAlign = 'center';
+      c.fillText('Foto hierher ziehen', 120, 112); c.fillText('oder klicken', 120, 138); c.textAlign = 'start';
+      return;
+    }
+    const s = Math.min(240 / ph.w, 240 / ph.h), x = (240 - ph.w * s) / 2, y = (240 - ph.h * s) / 2;
+    ph.geo = { s, x, y };
+    c.drawImage(ph.img, x, y, ph.w * s, ph.h * s);
+    if (ph.mask) {
+      // background dimmed, object stays bright, outline box in the accent colour
+      const o = document.createElement('canvas'); o.width = ph.w; o.height = ph.h;
+      const oc = o.getContext('2d'), id = oc.createImageData(ph.w, ph.h);
+      for (let i = 0; i < ph.w * ph.h; i++) if (!ph.mask[i]) { id.data[i * 4] = 20; id.data[i * 4 + 1] = 30; id.data[i * 4 + 2] = 26; id.data[i * 4 + 3] = 170; }
+      oc.putImageData(id, 0, 0);
+      c.imageSmoothingEnabled = false; c.drawImage(o, x, y, ph.w * s, ph.h * s); c.imageSmoothingEnabled = true;
+    }
+    const btn = (t, title, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.title = title; b.addEventListener('click', fn); ph.sb.append(b); };
+    if (key !== 'angle') {
+      btn('↔', 'spiegeln', () => { ph.flip = !ph.flip; paintSlot(key); });
+      btn('Nachzeichnen', 'Umriss von Hand', () => openDraw({ kind: 'trace', img: ph.img, done: (pts) => { const k = ph.w / ph.img.naturalWidth; ph.poly = pts.map((p) => [p[0] * k, (ph.img.naturalHeight - p[1]) * k]); computeMask(key); paintSlot(key); updateDims(); } }));
+      if (ph.extra.length || ph.poly) btn('Auto', 'automatische Trennung', () => { ph.extra = []; ph.poly = null; computeMask(key); paintSlot(key); updateDims(); });
+    }
+    btn('✕', 'Foto entfernen', () => { Object.assign(ph, { img: null, mask: null, crop: null, poly: null, file: null }); paintSlot(key); updateDims(); });
+    if (ph.flip) { c.fillStyle = css('--sel'); c.font = '600 12px ' + css('--font-body'); c.fillText('↔ gespiegelt', 8, 18); }
+    if (ph.crop === null && key !== 'angle') { c.fillStyle = css('--bad'); c.font = '600 12px ' + css('--font-body'); c.fillText('kein Objekt erkannt', 8, 232); }
+  }
+  $('tol').addEventListener('input', () => { ['front', 'side', 'top'].forEach((k) => { if (photos[k].img && !photos[k].poly) { computeMask(k); paintSlot(k); } }); updateDims(); });
+  let simp = Number(store.get('simp') || 0.012);
+  document.querySelectorAll('#pSimp [data-v]').forEach((b) => {
+    b.setAttribute('aria-pressed', String(Number(b.dataset.v) === simp));
+    b.addEventListener('click', () => { simp = Number(b.dataset.v); store.set('simp', String(simp)); document.querySelectorAll('#pSimp [data-v]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); });
+  });
+  function dims() {
+    const H = val($('pH'), 120, 10, 2000);
+    const c = (k) => photos[k].crop;
+    const f = c('front'), s = c('side'), t = c('top');
+    if (!f && !s && !t) return null;
+    let W, D;
+    if (f) W = (H * f.w) / f.h;
+    if (s) D = (H * s.w) / s.h;
+    if (!f) W = t && D ? (D * t.w) / t.h : D || H;
+    if (!s) D = t ? (W * t.h) / t.w : W * 0.6;
+    return { W, H, D, views: ['front', 'side', 'top'].filter((k) => c(k)) };
+  }
+  function updateDims() {
+    const d = dims();
+    $('pDims').textContent = d ? `Breite × Höhe × Tiefe: ${fmt(d.W)} × ${fmt(d.H)} × ${fmt(d.D)} mm (aus ${d.views.length} ${d.views.length === 1 ? 'Umriss' : 'Umrissen'}${d.views.length === 1 ? ', Tiefe geschätzt' : ''})` : 'Noch keine Fotos.';
+  }
+  $('pH').addEventListener('change', updateDims);
+  $('pGo').addEventListener('click', () => {
+    const d = dims();
+    if (!d) { $('pStatus').textContent = 'Erst mindestens ein Foto (am besten Vorne und Seite).'; $('pStatus').className = 'status warn'; return; }
+    $('pStatus').className = 'status'; $('pStatus').textContent = 'Rechne …'; $('pGo').disabled = true;
+    setTimeout(() => {
+      try {
+        const views = {};
+        d.views.forEach((k) => { const ph = photos[k]; views[k] = { mask: ph.crop.mask, w: ph.crop.w, h: ph.crop.h, flip: ph.flip }; });
+        const n = val($('pN'), 80, 8, 400), L = Math.max(d.W, d.H, d.D);
+        const h = Werk.hull(views, d, 56);
+        const r = Werk.fastReduce(h.v, Werk.triangulate(h), n, L * simp);
+        const b = Mesh.build({ vertices: r.verts, faces: r.tris }, n);
+        const m = Werk.orient(Werk.fromTris(b.verts, b.tris));
+        const bb = Werk.bbox(m), want = [d.W, d.H, d.D];
+        m.v.forEach((p) => { for (let k = 0; k < 3; k++) if (bb.size[k] > 1e-6) p[k] = bb.mid[k] + ((p[k] - bb.mid[k]) * want[k]) / bb.size[k]; });
+        Werk.place(m);
+        setModel(m, 'Foto-Modell');
+        $('pStatus').textContent = `Fertig: ${m.v.length} Punkte. Mulden und Henkel sieht man im Umriss nicht, die unter „3 Bearbeiten“ nachbauen (Einrücken I, dann E nach innen).`;
+      } catch (e) { $('pStatus').textContent = 'Ging nicht: ' + e.message; $('pStatus').className = 'status err'; }
+      $('pGo').disabled = false;
+    }, 30);
+  });
+  // photos to Claude: straight from the page where possible, else as a copied request
+  function photoPrompt() {
+    const d = dims(), n = val($('pN'), 80, 8, 400);
+    const have = SLOTS.filter(([k]) => photos[k].img).map(([k, t]) => t);
+    const sizes = d ? `- Einheit Millimeter. Maße laut Umriss: Breite (x) ${Math.round(d.W)}, Höhe (y) ${Math.round(d.H)}, Tiefe (z) ${Math.round(d.D)} mm. Halte diese Maße ein. Y-Achse zeigt nach oben, das Objekt steht auf y = 0, die Vorderseite zeigt nach +z.` : null;
+    return { n, text: buildPrompt(`Baue das Objekt auf den Fotos nach (Ansichten in dieser Reihenfolge: ${have.join(', ')}). Wenn mehrere ähnliche Objekte zu sehen sind, nimm ihre typische gemeinsame Form.`, n, sizes), dims: d };
+  }
+  async function photoBlobs() {
+    const out = [];
+    for (const [k] of SLOTS) {
+      const ph = photos[k];
+      if (!ph.img) continue;
+      const sc = Math.min(1, 1024 / Math.max(ph.img.naturalWidth, ph.img.naturalHeight)), c = document.createElement('canvas');
+      c.width = Math.round(ph.img.naturalWidth * sc); c.height = Math.round(ph.img.naturalHeight * sc);
+      c.getContext('2d').drawImage(ph.img, 0, 0, c.width, c.height);
+      out.push(await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.85)));
+    }
+    return out;
+  }
+  let pCtl = null, pReq = null;
+  const pStatus = (t, cls) => { $('pStatus').textContent = t || ''; $('pStatus').className = 'status' + (cls ? ' ' + cls : ''); };
+  $('pClaude').addEventListener('click', async () => {
+    if (!SLOTS.some(([k]) => photos[k].img)) { pStatus('Erst Fotos hinzufügen.', 'warn'); return; }
+    pReq = photoPrompt();
+    const sample = await samplePromise;
+    const lim = sample && sample.limits ? await sample.limits().catch(() => null) : null;
+    if (!sample || !lim || !lim.images) {
+      $('pManual').hidden = false;
+      try { await navigator.clipboard.writeText(pReq.text + MANUAL); pStatus('Auftrag kopiert. In einen Claude-Chat einfügen und die Fotos dazuziehen.'); }
+      catch { pStatus('Kopieren wurde blockiert.', 'warn'); }
+      return;
+    }
+    $('pClaude').disabled = true; $('pClaudeStop').hidden = false; pCtl = new AbortController();
+    pStatus('Claude schaut sich die Fotos an und baut das Modell. Das kann eine Minute dauern …');
+    try {
+      const blobs = (await photoBlobs()).slice(0, lim.images.maxCount || 4);
+      handlePhotoAnswer(await sample.json(pReq.text, { images: blobs, modelTier: 'complex', signal: pCtl.signal }));
+    } catch (e) { claudeError(e, pStatus); }
+    finally { $('pClaude').disabled = false; $('pClaudeStop').hidden = true; pCtl = null; }
+  });
+  $('pClaudeStop').addEventListener('click', () => pCtl && pCtl.abort());
+  function handlePhotoAnswer(res) {
+    if (res && res.question) { pStatus('Claude fragt: ' + String(res.question) + (Array.isArray(res.options) ? ' (' + res.options.join(' / ') + ')' : '') + ' Antworte im Chat oder versuch es mit deutlicheren Fotos.'); return; }
+    const { b, nm } = takeModel(res, pReq.n, pReq.dims);
+    pStatus(b.stats.closed ? `${nm}: fertig, auf die Maße aus den Umrissen gebracht.` : `${nm}: nicht ganz geschlossen (rot). Unter „3 Bearbeiten“ mit F füllen.`, b.stats.closed ? '' : 'warn');
+  }
+  $('pUse').addEventListener('click', () => {
+    if (!pReq) pReq = photoPrompt();
+    let res;
+    try { res = parseAnswer($('pAnswer').value); } catch (e) { pStatus('Die Antwort ließ sich nicht lesen: ' + e.message, 'err'); return; }
+    try { handlePhotoAnswer(res); } catch (e) { pStatus('Das Modell ließ sich nicht verarbeiten: ' + e.message, 'err'); }
+  });
+  samplePromise.then(async (s) => {
+    const lim = s && s.limits ? await s.limits().catch(() => null) : null;
+    if (!lim || !lim.images) { $('pClaude').textContent = 'Auftrag für Claude kopieren'; $('pClaudeHint').textContent = 'Kopiert einen Auftrag mit den Maßen aus den Umrissen. Im Claude-Chat die Fotos dazuziehen. Kostet Nachrichten aus deinem Claude-Limit.'; }
+  });
+
+  // ---------- 4 Speichern ----------
+  let built = null;
+  function prepareSave() {
+    if (!model) return;
+    try { built = Mesh.build(Werk.toRaw(model), null); }
+    catch (e) { built = null; $('saveStatus').textContent = 'Das Modell lässt sich so nicht speichern: ' + e.message; return; }
+    const s = Werk.stats(model), items = [];
+    if (s.open) items.push(`${s.open} offene Kanten (rot): Unter „3 Bearbeiten“ schließt F die Löcher. Der Abwickler schneidet dort sonst nur.`);
+    if (s.many) items.push(`${s.many} Kanten gehören zu mehr als zwei Flächen. Das kann der Abwickler nicht falten.`);
+    $('checks').innerHTML = '';
+    items.forEach((t) => { const li = document.createElement('li'); li.textContent = t; $('checks').append(li); });
+    $('checks').hidden = !items.length;
+    $('log').innerHTML = '';
+    [...(lastLog || []), ...built.log].forEach((l) => { const li = document.createElement('li'); li.textContent = l; $('log').append(li); });
+    $('saveStatus').textContent = '';
+  }
+  $('name').addEventListener('change', () => { name = $('name').value.trim() || 'Modell'; updateStats(); saveTimerKick(); });
+  const saveTimerKick = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (model) store.set('model', JSON.stringify({ v: model.v, f: model.f, name })); }, 200); };
+  const slug = (t) => (t || 'modell').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'modell';
+  $('save').addEventListener('click', async () => {
+    prepareSave(); if (!built) return;
+    const obj = Mesh.toOBJ(built, name);
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads').catch(() => null) : null;
+    if (!dl) {
+      const url = URL.createObjectURL(new Blob([obj], { type: 'text/plain' }));
+      const a = document.createElement('a'); a.href = url; a.download = `${slug(name)}-${built.stats.V}.obj`;
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      $('saveStatus').textContent = 'Gespeichert.';
+      return;
+    }
+    try { await dl.save({ filename: `${slug(name)}-${built.stats.V}.obj.txt`, data: obj }); $('saveStatus').textContent = 'Gespeichert. Die Endung .txt darfst du entfernen; der Abwickler liest beides.'; }
+    catch (e) { $('saveStatus').textContent = e && e.code === 'declined' ? 'Nicht gespeichert.' : 'Speichern ist fehlgeschlagen. Nutze „OBJ kopieren“.'; }
+  });
+  $('copy').addEventListener('click', async () => {
+    prepareSave(); if (!built) return;
+    try { await navigator.clipboard.writeText(Mesh.toOBJ(built, name)); $('saveStatus').textContent = 'OBJ-Text kopiert.'; }
+    catch { $('saveStatus').textContent = 'Kopieren wurde blockiert.'; }
+  });
+
+  // ---------- start ----------
+  if (location.hash === '#test') window.__mg = { P: () => P, model: () => model, sel: () => [...sel] };
+  shape = SHAPES[store.get('shape')] ? store.get('shape') : 'box';
+  document.querySelectorAll('[data-shape]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.shape === shape)));
+  shapeParams();
+  snap = store.get('snap') !== '0'; $('snap').checked = snap;
+  let restored = false;
+  try {
+    const s = JSON.parse(store.get('model') || 'null');
+    if (s && Array.isArray(s.v) && Array.isArray(s.f) && s.v.length >= 4) { model = { v: s.v, f: s.f }; name = s.name || 'Modell'; restored = true; }
+  } catch { /* ignore */ }
+  if (!restored) { model = Werk.house(80, 50, 60, 30); name = 'Haus'; }
+  $('name').value = name;
+  setMode(store.get('mode') || 'v', true);
+  setSym(['off', 'x', 'z'].includes(store.get('sym')) ? store.get('sym') : 'off');
+  requestAnimationFrame(() => { fit(); changed(); });
+  setTab(['neu', 'fotos', 'bearbeiten', 'speichern'].includes(store.get('tab')) ? store.get('tab') : 'neu');
+  if (restored) status('Dein letztes Modell ist wieder da.');
+  $('objtext').value = '';
+})();
+
+</script>
+
+</body></html>
